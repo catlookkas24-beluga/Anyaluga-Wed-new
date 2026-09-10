@@ -21,18 +21,49 @@
 
     <div class="system-grid">
       {% for key, meta in systems.items() %}
-      <form method="post" action="/dashboard/{{ guild_id }}/toggle/{{ key }}" class="system-card {{ 'on' if systems_enabled.get(key, True) else 'off' }}">
+      <div class="system-card {{ 'on' if systems_enabled.get(key, True) else 'off' }}" data-system="{{ key }}">
         <div class="system-card-top">
           <span class="system-emoji">{{ meta[0] }}</span>
           <span class="toggle-pill">{{ 'เปิด' if systems_enabled.get(key, True) else 'ปิด' }}</span>
         </div>
         <div class="system-name">{{ meta[1] }}</div>
-        <button type="submit" class="toggle-switch" aria-label="toggle">
+        <button type="button" class="toggle-switch" aria-label="toggle" onclick="toggleSystem(this, '{{ guild_id }}', '{{ key }}')">
           <span class="toggle-knob"></span>
         </button>
-      </form>
+      </div>
       {% endfor %}
     </div>
+
+    <script>
+      async function toggleSystem(button, guildId, systemKey) {
+        const card = button.closest('.system-card');
+        if (card.classList.contains('loading')) return;  // กันกดรัวๆ ซ้ำระหว่างรอผล
+        card.classList.add('loading');
+        // สลับสถานะ UI ทันทีให้รู้สึกลื่น (optimistic) แล้วค่อยยืนยันกับผลจริงจากเซิร์ฟเวอร์
+        const willBeOn = !card.classList.contains('on');
+        card.classList.toggle('on', willBeOn);
+        card.classList.toggle('off', !willBeOn);
+        card.querySelector('.toggle-pill').textContent = willBeOn ? 'เปิด' : 'ปิด';
+
+        try {
+          const res = await fetch(`/dashboard/${guildId}/toggle/${systemKey}`, { method: 'POST' });
+          if (!res.ok) throw new Error('toggle failed');
+          const data = await res.json();
+          // ยืนยันสถานะจริงจากเซิร์ฟเวอร์ (เผื่อไม่ตรงกับที่เดาไว้)
+          card.classList.toggle('on', data.enabled);
+          card.classList.toggle('off', !data.enabled);
+          card.querySelector('.toggle-pill').textContent = data.enabled ? 'เปิด' : 'ปิด';
+        } catch (e) {
+          // ยิงไม่สำเร็จ (เน็ตหลุด/session หมดอายุ) — คืนค่า UI กลับที่เดิม
+          card.classList.toggle('on', !willBeOn);
+          card.classList.toggle('off', willBeOn);
+          card.querySelector('.toggle-pill').textContent = !willBeOn ? 'เปิด' : 'ปิด';
+          alert('สลับสถานะไม่สำเร็จ ลองใหม่อีกครั้งครับ (อาจต้อง login ใหม่)');
+        } finally {
+          card.classList.remove('loading');
+        }
+      }
+    </script>
 
     <div class="quick-links">
       <h2>ตั้งค่ารายระบบ</h2>

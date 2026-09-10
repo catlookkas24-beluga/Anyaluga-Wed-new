@@ -51,6 +51,23 @@
                    oninput="document.getElementById('{{ field.key }}_picker').value = this.value">
           </div>
 
+        {% elif field.type == 'image' %}
+          <div class="image-upload" data-field="{{ field.key }}">
+            <div class="image-preview-wrap">
+              <img class="image-preview" id="{{ field.key }}_preview"
+                   src="{{ values.get(field.key) or '' }}"
+                   style="display: {{ 'block' if values.get(field.key) else 'none' }};" alt="">
+              <div class="image-preview-empty" id="{{ field.key }}_empty"
+                   style="display: {{ 'none' if values.get(field.key) else 'flex' }};">ยังไม่มีรูป</div>
+            </div>
+            <input type="hidden" id="{{ field.key }}" name="{{ field.key }}" value="{{ values.get(field.key) or '' }}">
+            <label class="btn btn-ghost btn-sm image-upload-btn">
+              📤 <span class="upload-label" id="{{ field.key }}_label">อัปโหลดรูป</span>
+              <input type="file" accept="image/png,image/jpeg,image/webp" style="display:none"
+                     onchange="uploadImage(this, '{{ guild_id }}', '{{ field.key }}')">
+            </label>
+          </div>
+
         {% elif field.type == 'checkbox' %}
           <label class="switch-inline">
             <input type="checkbox" id="{{ field.key }}" name="{{ field.key }}" {{ 'checked' if values.get(field.key) }}>
@@ -88,4 +105,40 @@
     </form>
   </main>
 </div>
+
+<script>
+  async function uploadImage(input, guildId, fieldKey) {
+    const file = input.files[0];
+    if (!file) return;
+    const label = document.getElementById(fieldKey + '_label');
+    const preview = document.getElementById(fieldKey + '_preview');
+    const empty = document.getElementById(fieldKey + '_empty');
+    const hidden = document.getElementById(fieldKey);
+    const originalLabel = label.textContent;
+    label.textContent = 'กำลังอัปโหลด...';
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch(`/dashboard/${guildId}/upload-image`, { method: 'POST', body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'อัปโหลดไม่สำเร็จ');
+      }
+      const data = await res.json();
+      hidden.value = data.url;
+      preview.src = data.url;
+      preview.style.display = 'block';
+      empty.style.display = 'none';
+      label.textContent = '✅ อัปโหลดแล้ว';
+      setTimeout(() => { label.textContent = 'เปลี่ยนรูป'; }, 1500);
+    } catch (e) {
+      alert(e.message || 'อัปโหลดรูปไม่สำเร็จ ลองใหม่อีกครั้งครับ');
+      label.textContent = originalLabel;
+    } finally {
+      input.value = '';  // เคลียร์ input กันเลือกไฟล์เดิมซ้ำแล้ว onchange ไม่ยิง
+    }
+  }
+</script>
 {% endblock %}
