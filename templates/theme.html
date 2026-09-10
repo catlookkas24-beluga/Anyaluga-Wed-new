@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}ตั้งสีธีมรวม — Beluga Dashboard{% endblock %}
+{% block body %}
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand">🐋 Beluga</div>
+    <nav class="sidebar-nav">
+      <a href="/dashboard/{{ guild_id }}" class="nav-item">⚙️ ภาพรวม</a>
+      <a href="/dashboard/{{ guild_id }}/tools/theme" class="nav-item active">🎨 ตั้งสีธีมรวม</a>
+    </nav>
+    <a href="/guilds" class="sidebar-back">← เปลี่ยนเซิร์ฟเวอร์</a>
+  </aside>
+
+  <main class="content">
+    <h1>🎨 ตั้งสีธีมรวม</h1>
+    <p class="muted">ตั้งสีเดียว แล้วเขียนทับสีของ ต้อนรับ / อำลา / ยืนยันตัวตน / กฎ / Ticket พร้อมกันทันที</p>
+    {% if request.query_params.get('saved') %}
+      <div class="alert alert-success">✅ ตั้งสีธีมให้ครบทุกระบบแล้ว — อย่าลืมโพสต์แผงใหม่ในดิสคอร์ดถ้าอยากให้เห็นผลของเก่า</div>
+    {% endif %}
+
+    <form method="post" class="edit-form">
+      <div class="form-group">
+        <label for="hex_color">สี hex</label>
+        <div class="color-input">
+          <input type="color" id="hex_picker" value="#5865f2" oninput="document.getElementById('hex_color').value = this.value">
+          <input type="text" id="hex_color" name="hex_color" value="#5865f2" oninput="document.getElementById('hex_picker').value = this.value">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">🎨 ใช้สีนี้กับทุกระบบ</button>
+    </form>
+
+    <h2 style="margin-top: 2rem;">สีปัจจุบันของแต่ละระบบ</h2>
+    <div class="color-grid">
+      {% for section, color in colors.items() %}
+      <div class="color-chip">
+        <span class="chip-swatch" style="background:{{ color }}"></span>
+        <span>{{ section }} — {{ color }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </main>
+</div>
+{% endblock %}

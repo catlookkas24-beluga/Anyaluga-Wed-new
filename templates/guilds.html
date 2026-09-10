@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}เลือกเซิร์ฟเวอร์ — Beluga Dashboard{% endblock %}
+{% block body %}
+<div class="topbar">
+  <div class="topbar-brand">🐋 Beluga Dashboard</div>
+  <div class="topbar-user">
+    <span>{{ user.username }}</span>
+    <a href="/logout" class="btn btn-ghost btn-sm">ออกจากระบบ</a>
+  </div>
+</div>
+
+<div class="page">
+  <h1>เลือกเซิร์ฟเวอร์</h1>
+  <p class="muted">แสดงเฉพาะเซิร์ฟที่คุณมีสิทธิ์ Manage Server</p>
+
+  {% if not guilds %}
+    <div class="empty-state">
+      <p>ไม่พบเซิร์ฟที่คุณมีสิทธิ์จัดการเลยครับ</p>
+    </div>
+  {% else %}
+  <div class="guild-grid">
+    {% for g in guilds %}
+    <div class="guild-card">
+      <div class="guild-icon">
+        {% if g.icon %}
+          <img src="https://cdn.discordapp.com/icons/{{ g.id }}/{{ g.icon }}.png" alt="">
+        {% else %}
+          <div class="guild-icon-fallback">{{ g.name[0] }}</div>
+        {% endif %}
+      </div>
+      <div class="guild-name">{{ g.name }}</div>
+      {% if g.bot_present %}
+        <a class="btn btn-primary btn-sm" href="/dashboard/{{ g.id }}">จัดการ →</a>
+      {% else %}
+        <a class="btn btn-ghost btn-sm" href="{{ invite_base }}{{ g.id }}" target="_blank">➕ เชิญบอทเข้าเซิร์ฟนี้</a>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ guild_name }} — Beluga Dashboard{% endblock %}
+{% block body %}
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand">🐋 Beluga</div>
+    <div class="sidebar-guild">{{ guild_name }}</div>
+    <nav class="sidebar-nav">
+      <a href="/dashboard/{{ guild_id }}" class="nav-item active">⚙️ ภาพรวม</a>
+      {% for key, meta in systems.items() %}
+      <a href="/dashboard/{{ guild_id }}/{{ key }}" class="nav-item">{{ meta[0] }} {{ meta[1] }}</a>
+      {% endfor %}
+      <a href="/dashboard/{{ guild_id }}/tools/theme" class="nav-item">🎨 ตั้งสีธีมรวม</a>
+    </nav>
+    <a href="/guilds" class="sidebar-back">← เปลี่ยนเซิร์ฟเวอร์</a>
+  </aside>
+
+  <main class="content">
+    <h1>⚙️ ภาพรวมระบบ</h1>
+    <p class="muted">กดการ์ดเพื่อเปิด/ปิดแต่ละระบบทันที — สีเขียวสว่าง = เปิดอยู่</p>
+
+    <div class="system-grid">
+      {% for key, meta in systems.items() %}
+      <form method="post" action="/dashboard/{{ guild_id }}/toggle/{{ key }}" class="system-card {{ 'on' if systems_enabled.get(key, True) else 'off' }}">
+        <div class="system-card-top">
+          <span class="system-emoji">{{ meta[0] }}</span>
+          <span class="toggle-pill">{{ 'เปิด' if systems_enabled.get(key, True) else 'ปิด' }}</span>
+        </div>
+        <div class="system-name">{{ meta[1] }}</div>
+        <button type="submit" class="toggle-switch" aria-label="toggle">
+          <span class="toggle-knob"></span>
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+
+    <div class="quick-links">
+      <h2>ตั้งค่ารายระบบ</h2>
+      <div class="link-grid">
+        {% for key, meta in systems.items() %}
+        <a class="link-card" href="/dashboard/{{ guild_id }}/{{ key }}">{{ meta[0] }} แก้ไข{{ meta[1] }} →</a>
+        {% endfor %}
+      </div>
+    </div>
+  </main>
+</div>
+{% endblock %}
