@@ -16,6 +16,7 @@ ENV ที่ต้องตั้ง (ดู .env.example):
   SESSION_SECRET                   — string สุ่มยาว ๆ ไว้เซ็น session cookie
 """
 
+import asyncio
 import os
 import time
 from urllib.parse import urlencode
@@ -72,13 +73,17 @@ async def fetch_user_info(access_token: str) -> dict:
         return resp.json()
 
 
-async def fetch_bot_guild_ids() -> set:
-    """เซิร์ฟที่บอทอยู่จริง (เช็คจาก MongoDB — เร็วกว่ายิง Discord API ทุกครั้ง เพราะ get_guild_config
-    สร้าง record ทุกเซิร์ฟที่บอทเคย on_ready/ใช้งานอยู่แล้ว)"""
-    ids = set()
-    async for doc in db.guilds.find({}, {"_id": 1}):
-        ids.add(doc["_id"])
-    return ids
+async def bot_is_in_guild(guild_id: int) -> bool:
+    """🆕 เช็คตรงกับ Discord API ว่าบอทอยู่ในเซิร์ฟนี้จริงไหม — เดิมเช็คจาก MongoDB (db.guilds)
+    ซึ่งผิด เพราะ get_guild_config() สร้าง record ก็ต่อเมื่อมีการเรียกใช้ระบบใดระบบหนึ่งในเซิร์ฟนั้น
+    แล้วเท่านั้น เซิร์ฟที่บอทอยู่จริงแต่ยังไม่เคยรันคำสั่ง/ยังไม่เคย on_ready ครบ จะไม่มี record เลย
+    ทำให้ขึ้น "เชิญบอทเข้าเซิร์ฟนี้" ทั้งที่บอทอยู่แล้ว"""
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{DISCORD_API}/guilds/{guild_id}",
+            headers={"Authorization": f"Bot {BOT_TOKEN}"},
+        )
+        return resp.status_code == 200
 
 
 async def fetch_guild_channels(guild_id: int) -> list:
@@ -181,21 +186,25 @@ async def callback(request: Request, code: str = None, error: str = None):
 
     user_info = await fetch_user_info(access_token)
     all_guilds = await fetch_user_guilds(access_token)
-    bot_guild_ids = await fetch_bot_guild_ids()
 
     # เก็บเฉพาะเซิร์ฟที่ user มีสิทธิ์ Manage Server เท่านั้น (เก็บ minimal fields กัน session cookie บวม)
-    manageable = []
-    for g in all_guilds:
-        perms = int(g.get("permissions", 0))
-        if perms & MANAGE_GUILD:
-            manageable.append(
-                {
-                    "id": g["id"],
-                    "name": g["name"],
-                    "icon": g.get("icon"),
-                    "bot_present": int(g["id"]) in bot_guild_ids,
-                }
-            )
+    manage_guild_guilds = [g for g in all_guilds if int(g.get("permissions", 0)) & MANAGE_GUILD]
+
+    # 🆕 เช็คสถานะบอทกับ Discord API ตรง ๆ พร้อมกันทุกเซิร์ฟ (เร็วกว่าเช็คทีละอัน) แทนการอ่านจาก
+    # MongoDB ซึ่งไม่รับประกันว่าจะมี record ครบทุกเซิร์ฟที่บอทอยู่จริง
+    presence_results = await asyncio.gather(
+        *[bot_is_in_guild(int(g["id"])) for g in manage_guild_guilds]
+    )
+
+    manageable = [
+        {
+            "id": g["id"],
+            "name": g["name"],
+            "icon": g.get("icon"),
+            "bot_present": is_present,
+        }
+        for g, is_present in zip(manage_guild_guilds, presence_results)
+    ]
 
     request.session["user"] = {
         "id": user_info["id"],
