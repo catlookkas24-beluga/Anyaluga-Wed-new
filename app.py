@@ -17,13 +17,15 @@ ENV ที่ต้องตั้ง (ดู .env.example):
 """
 
 import asyncio
+import io
+import mimetypes
 import os
 import time
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import FastAPI, Request, Form, HTTPException
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi import FastAPI, Request, Form, HTTPException, UploadFile, File
+from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -44,6 +46,20 @@ app = FastAPI(title="Beluga Dashboard")
 app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET, same_site="lax")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+
+@app.exception_handler(HTTPException)
+async def thai_friendly_http_exception_handler(request: Request, exc: HTTPException):
+    """🆕 กันข้อความไทยในหน้า error เพี้ยน (เช่น ตอนเจอ 403/404) — เดิม response ไม่ได้ระบุ
+    charset=utf-8 ชัดเจน ทำให้บาง browser (โดยเฉพาะ Safari บนมือถือ) เดา encoding ผิดจน
+    ตัวอักษรไทยกลายเป็นตัวอักษรมั่ว ๆ"""
+    if exc.headers and exc.headers.get("Location"):
+        return RedirectResponse(url=exc.headers["Location"], status_code=exc.status_code)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        media_type="application/json; charset=utf-8",
+    )
 
 # แคชรายชื่อห้อง/ยศสั้น ๆ (60 วิ) กันยิง Discord API ถี่เกินไปตอนโหลดหน้าเดิมซ้ำ ๆ
 _channel_cache: dict = {}
@@ -275,11 +291,54 @@ async def dashboard_home(request: Request, guild_id: int):
 
 @app.post("/dashboard/{guild_id}/toggle/{system_key}")
 async def toggle_system(request: Request, guild_id: int, system_key: str):
+    """🆕 คืนค่า JSON แทน redirect — ให้หน้า dashboard_home.html เรียกผ่าน JS (fetch) แล้ว
+    อนิเมชันสวิตช์เองได้ทันทีโดยไม่ต้องรีโหลดหน้าทั้งหน้า"""
     await require_guild_access(request, guild_id)
     cfg = await db.get_guild_config(guild_id)
     current = cfg["systems_enabled"].get(system_key, True)
-    await db.set_system_enabled(guild_id, system_key, not current)
-    return RedirectResponse(f"/dashboard/{guild_id}", status_code=303)
+    new_value = not current
+    await db.set_system_enabled(guild_id, system_key, new_value)
+    return JSONResponse({"system": system_key, "enabled": new_value})
+
+
+# ---------------- Image upload (แทนการพิมพ์ URL เอง) ----------------
+# อัปโหลดไฟล์เก็บเข้า GridFS ตัวเดียวกับที่บอทใช้ (ผ่าน db.save_asset) แล้วคืน URL ที่ชี้มาที่
+# เว็บ dashboard เอง (/assets/{file_id}) — เอาไปใส่ในช่อง image_url ของ welcome/goodbye ได้เลย
+# ไม่ต้องไปหา URL รูปจากที่อื่นมาพิมพ์เอง
+
+@app.post("/dashboard/{guild_id}/upload-image")
+async def upload_image(request: Request, guild_id: int, file: UploadFile = File(...)):
+    await require_guild_access(request, guild_id)
+    asset_type = db.detect_asset_type(file.filename)
+    if asset_type != "image":
+        raise HTTPException(status_code=400, detail="รองรับเฉพาะไฟล์รูป .png .jpg .jpeg .webp เท่านั้น")
+    data = await file.read()
+    if len(data) > db.MAX_ASSET_SIZE_BYTES:
+        raise HTTPException(status_code=400, detail="ไฟล์ใหญ่เกิน 5MB")
+    file_id = await db.save_asset(guild_id, file.filename, data, "image", file.filename)
+    return JSONResponse({"url": f"{BASE_URL}/assets/{file_id}"})
+
+
+@app.get("/assets/{file_id}")
+async def serve_asset(file_id: str):
+    """เสิร์ฟไฟล์รูปจาก GridFS ตรง ๆ (public — ไม่เช็ค login เพราะ Discord embed ต้องดึงรูปได้
+    โดยไม่มี auth header; file_id เป็น ObjectId สุ่มเดายาก จึงปลอดภัยเพียงพอสำหรับรูปภาพ)
+    เดา content-type จาก magic bytes ของไฟล์เอง แทนการเชื่อชื่อไฟล์ที่อาจไม่มีนามสกุลตรง"""
+    try:
+        data = await db.get_asset_bytes(file_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="ไม่พบไฟล์นี้")
+
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        content_type = "image/png"
+    elif data[:3] == b"\xff\xd8\xff":
+        content_type = "image/jpeg"
+    elif data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        content_type = "image/webp"
+    else:
+        content_type = "application/octet-stream"
+
+    return StreamingResponse(io.BytesIO(data), media_type=content_type)
 
 
 # ---------------- Generic section editor ----------------
@@ -288,6 +347,11 @@ async def toggle_system(request: Request, guild_id: int, system_key: str):
 # multi-role ticket, autorole timeline) ยังจัดการผ่าน slash command ในดิสคอร์ดเหมือนเดิมไปก่อน
 
 SECTION_SCHEMA = {
+    "activity": {
+        "title": "📊 Activity",
+        "fields": [],
+        "note": "ระบบนี้เป็นระบบดูสถิติอย่างเดียว ไม่มีอะไรให้ตั้งค่า — ดูสถิติผ่าน /stats และ /leaderboard ในดิสคอร์ดได้เลย (เปิด/ปิดระบบนี้ทำได้ที่หน้าภาพรวม)",
+    },
     "welcome": {
         "title": "🎉 Welcome",
         "fields": [
@@ -295,7 +359,7 @@ SECTION_SCHEMA = {
             {"key": "title", "label": "หัวข้อ", "type": "text"},
             {"key": "description", "label": "คำอธิบาย", "type": "textarea"},
             {"key": "color", "label": "สี", "type": "color"},
-            {"key": "image_url", "label": "รูปหลัก (URL)", "type": "text"},
+            {"key": "image_url", "label": "รูปหลัก", "type": "image"},
             {"key": "font_key", "label": "Font key (ดูจาก /font-list)", "type": "text"},
             {"key": "delay_seconds", "label": "หน่วงเวลาก่อนส่ง (วินาที)", "type": "number"},
             {"key": "dm_enabled", "label": "ส่ง DM ต้อนรับแยกด้วย", "type": "checkbox"},
@@ -309,7 +373,7 @@ SECTION_SCHEMA = {
             {"key": "title", "label": "หัวข้อ", "type": "text"},
             {"key": "description", "label": "คำอธิบาย", "type": "textarea"},
             {"key": "color", "label": "สี", "type": "color"},
-            {"key": "image_url", "label": "รูปหลัก (URL)", "type": "text"},
+            {"key": "image_url", "label": "รูปหลัก", "type": "image"},
             {"key": "font_key", "label": "Font key", "type": "text"},
         ],
     },
