@@ -321,11 +321,11 @@ fileInput.addEventListener('change', async () => {
   if(!file) return;
   const fd = new FormData(); fd.append('file', file);
   try{
-    const res = await fetch(`/api/onboard/${GUILD_ID}/upload-image`, { method:'POST', body: fd });
+    const res = await fetch(`/dashboard/${GUILD_ID}/upload-image`, { method:'POST', body: fd });
     const json = await res.json();
     if(!res.ok) throw new Error(json.detail || 'อัปโหลดไม่สำเร็จ');
-    state.image_url = json.image_url;
-    showThumb(json.image_url, file.name, (file.size/1024).toFixed(1) + ' KB');
+    state.image_url = json.url;
+    showThumb(json.url, file.name, (file.size/1024).toFixed(1) + ' KB');
     toast('อัปโหลดรูปสำเร็จ');
   }catch(e){ toast('⚠️ ' + e.message); }
 });
@@ -437,19 +437,19 @@ document.getElementById('refreshPreview').addEventListener('click', renderPrevie
 document.getElementById('savePresetBtn').addEventListener('click', async () => {
   const name = document.getElementById('f_preset_name').value.trim();
   if(!name){ toast('⚠️ ใส่ชื่อ preset ก่อน'); return; }
-  const res = await fetch(`/api/onboard/${GUILD_ID}/preset/save`, {
+  const res = await fetch(`/dashboard/${GUILD_ID}/welcome/wizard/preset/save`, {
     method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({...state, name})
   });
   if(res.ok) toast(`บันทึก preset "${name}" แล้ว`); else toast('⚠️ บันทึก preset ไม่สำเร็จ');
 });
 document.getElementById('presetSelect').addEventListener('change', async (e) => {
   const name = e.target.value; if(!name) return;
-  const res = await fetch(`/api/onboard/${GUILD_ID}/preset/${encodeURIComponent(name)}`);
+  const res = await fetch(`/dashboard/${GUILD_ID}/welcome/wizard/preset/${encodeURIComponent(name)}`);
   const json = await res.json();
   if(res.ok){ Object.assign(state, json.config); toast(`โหลด preset "${name}" แล้ว`); goToStep(1); location.reload(); }
 });
 document.getElementById('saveAllBtn').addEventListener('click', async () => {
-  const res = await fetch(`/api/onboard/${GUILD_ID}/welcome`, {
+  const res = await fetch(`/dashboard/${GUILD_ID}/welcome/wizard/save`, {
     method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(state)
   });
   if(res.ok) toast('✅ บันทึกการตั้งค่าแล้ว!'); else toast('⚠️ บันทึกไม่สำเร็จ');
