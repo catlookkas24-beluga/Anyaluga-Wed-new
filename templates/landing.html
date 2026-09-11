@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anyaluga — Discord Bot Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --pink:#FFB6C1; --pink-deep:#FF8FA3; --night:#1B1030; --night2:#2A1B45; }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:40px 24px; text-align:center; color:#fff;
+    font-family:'Noto Sans Thai','Baloo 2',sans-serif;
+    background:radial-gradient(circle at 30% 20%, #3a2361, transparent 55%),
+               radial-gradient(circle at 80% 75%, #4d2a5a, transparent 50%),
+               linear-gradient(180deg, var(--night), var(--night2));
+    overflow:hidden; position:relative;
+  }
+  .sparkle{ position:absolute; color:var(--pink); opacity:.7; animation:twinkle 2.4s ease-in-out infinite; }
+  @keyframes twinkle{ 0%,100%{opacity:.25; transform:scale(.8)} 50%{opacity:.9; transform:scale(1.1)} }
+  .mascot{
+    width:150px; height:150px; border-radius:50%; margin-bottom:22px;
+    background:linear-gradient(135deg,var(--pink),var(--pink-deep));
+    display:flex; align-items:center; justify-content:center; font-size:64px;
+    box-shadow:0 0 0 8px rgba(255,182,193,.12), 0 20px 40px rgba(0,0,0,.35);
+  }
+  .brand{ font-family:'Baloo 2',sans-serif; font-weight:700; font-size:22px; display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .brand small{ display:block; font-weight:400; font-size:12px; color:#c9b8dd; }
+  h1{ font-family:'Baloo 2',sans-serif; font-size:30px; margin:26px 0 10px; }
+  p{ color:#d8c9ea; font-size:15px; line-height:1.6; max-width:320px; margin:0 auto; }
+  .cta{
+    margin-top:34px; width:100%; max-width:320px; border:none; border-radius:16px; padding:16px;
+    background:linear-gradient(135deg,var(--pink),var(--pink-deep)); color:#2a1030; font-weight:700; font-size:16px;
+    font-family:inherit; cursor:pointer; box-shadow:0 10px 24px rgba(255,143,163,.35);
+  }
+  .cta:active{ transform:scale(.98); }
+</style>
+</head>
+<body>
+  <div class="sparkle" style="top:12%;left:18%;font-size:14px">✦</div>
+  <div class="sparkle" style="top:22%;left:78%;font-size:10px">✦</div>
+  <div class="sparkle" style="top:65%;left:12%;font-size:12px">✦</div>
+  <div class="sparkle" style="top:75%;left:82%;font-size:16px">✦</div>
+
+  <div class="brand">🐳 Anyaluga<small>Discord Bot Dashboard</small></div>
+
+  <div class="mascot">🐳</div>
+
+  <h1>สวัสดี!</h1>
+  <p>
+    ยินดีต้อนรับสู่ <b>Anyaluga</b> ผู้ช่วยจัดการเซิร์ฟเวอร์ Discord ของคุณ<br><br>
+    ดูแลและตั้งค่าเซิร์ฟเวอร์ของคุณให้เป็นเรื่องง่ายเหมือนมีเพื่อนใจดี 💗
+  </p>
+
+  <button class="cta" onclick="location.href='/servers'">เริ่มต้นใช้งาน →</button>
+</body>
+</html>

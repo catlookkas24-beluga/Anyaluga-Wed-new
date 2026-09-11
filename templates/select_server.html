@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>เลือกเซิร์ฟเวอร์ — Anyaluga</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --pink:#FFB6C1; --pink-deep:#FF8FA3; --pink-soft:#FFE3E8; --ink:#3B2E33; --ink-soft:#8A7B80; --line:#F3D9DE; --bg:#FFF6F8; }
+  *{box-sizing:border-box}
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Noto Sans Thai','Baloo 2',sans-serif; display:flex; justify-content:center; min-height:100vh; padding:24px 12px; }
+  .app{ width:100%; max-width:460px; }
+  .topbar{ display:flex; align-items:center; gap:10px; margin-bottom:18px; }
+  .back{ width:38px; height:38px; border-radius:12px; border:1.5px solid var(--line); background:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; text-decoration:none; color:var(--ink); }
+  h1{ font-family:'Baloo 2',sans-serif; font-size:20px; margin:0; }
+  .sub{ color:var(--ink-soft); font-size:14px; margin:6px 0 18px; }
+  input[type=text]{ width:100%; border:1.5px solid var(--line); border-radius:14px; padding:12px 16px; font-family:inherit; font-size:14px; background:#fff; margin-bottom:16px; }
+  input:focus{ outline:none; border-color:var(--pink); }
+
+  .guild{ display:flex; align-items:center; gap:12px; border:1.5px solid var(--line); border-radius:16px; padding:12px 14px; margin-bottom:10px; cursor:pointer; background:#fff; }
+  .guild.selected{ border-color:var(--pink-deep); background:var(--pink-soft); }
+  .guild .icon{ width:44px; height:44px; border-radius:50%; background:linear-gradient(135deg,var(--pink),var(--pink-deep)); display:flex; align-items:center; justify-content:center; font-size:18px; color:#fff; font-weight:700; flex-shrink:0; }
+  .guild .meta{ flex:1; }
+  .guild .meta b{ display:block; font-size:15px; }
+  .guild .meta span{ font-size:12px; color:var(--ink-soft); }
+  .radio{ width:20px; height:20px; border-radius:50%; border:2px solid var(--line); flex-shrink:0; position:relative; }
+  .guild.selected .radio{ border-color:var(--pink-deep); }
+  .guild.selected .radio:after{ content:""; position:absolute; inset:3px; border-radius:50%; background:var(--pink-deep); }
+
+  .empty{ text-align:center; color:var(--ink-soft); font-size:14px; padding:30px 10px; }
+
+  .btn{ width:100%; border:none; border-radius:14px; padding:15px; font-weight:700; font-size:15px; cursor:pointer; font-family:inherit; margin-top:16px; }
+  .btn-primary{ background:linear-gradient(135deg,var(--pink),var(--pink-deep)); color:#fff; box-shadow:0 8px 18px rgba(255,143,163,.35); }
+  .btn-primary:disabled{ opacity:.4; cursor:not-allowed; box-shadow:none; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <a class="back" href="/">←</a>
+    <div>
+      <h1>เลือกเซิร์ฟเวอร์</h1>
+    </div>
+  </div>
+  <p class="sub">กรุณาเลือกเซิร์ฟเวอร์ที่คุณต้องการตั้งค่า</p>
+
+  <input type="text" id="search" placeholder="🔍 ค้นหาเซิร์ฟเวอร์...">
+
+  <div id="guildList">
+    {% for g in guilds %}
+    <div class="guild" data-id="{{ g.id }}" data-name="{{ g.name|lower }}">
+      <div class="icon">{{ g.name[0]|upper }}</div>
+      <div class="meta"><b>{{ g.name }}</b><span>{{ "{:,}".format(g.member_count) }} members</span></div>
+      <div class="radio"></div>
+    </div>
+    {% else %}
+    <div class="empty">ไม่พบเซิร์ฟเวอร์ที่คุณเป็นแอดมิน<br>ลองเชิญ Anyaluga เข้าเซิร์ฟก่อนครับ</div>
+    {% endfor %}
+  </div>
+
+  <button class="btn btn-primary" id="nextBtn" disabled>ถัดไป →</button>
+</div>
+
+<script>
+  let selectedId = null;
+  const nextBtn = document.getElementById('nextBtn');
+  document.querySelectorAll('.guild').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.guild').forEach(x => x.classList.remove('selected'));
+      el.classList.add('selected');
+      selectedId = el.dataset.id;
+      nextBtn.disabled = false;
+    });
+  });
+  document.getElementById('search').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('.guild').forEach(el => {
+      el.style.display = el.dataset.name.includes(q) ? 'flex' : 'none';
+    });
+  });
+  nextBtn.addEventListener('click', () => {
+    if(selectedId) location.href = `/dashboard/${selectedId}`;
+  });
+</script>
+</body>
+</html>
