@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anyaluga — Welcome Designer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pink:#FFB6C1;
+    --pink-deep:#FF8FA3;
+    --pink-soft:#FFE3E8;
+    --ink:#3B2E33;
+    --ink-soft:#8A7B80;
+    --card:#FFFFFF;
+    --bg:#FFF6F8;
+    --line:#F3D9DE;
+    --radius:20px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Noto Sans Thai','Baloo 2',sans-serif;
+    display:flex; justify-content:center; min-height:100vh; padding:24px 12px;
+  }
+  .app{ width:100%; max-width:460px; }
+  .card{
+    background:var(--card); border-radius:var(--radius);
+    box-shadow:0 10px 30px rgba(255,143,163,.15);
+    padding:22px; margin-bottom:16px;
+  }
+  h1,h2,h3{ font-family:'Baloo 2',sans-serif; margin:0 0 6px; }
+  .eyebrow{ color:var(--pink-deep); font-weight:600; font-size:13px; margin-bottom:4px; }
+  .sub{ color:var(--ink-soft); font-size:14px; margin:0 0 16px; }
+
+  .progress{ display:flex; gap:6px; margin:18px 0 20px; }
+  .progress i{ flex:1; height:6px; border-radius:99px; background:var(--line); }
+  .progress i.done{ background:var(--pink); }
+
+  label{ display:block; font-size:13px; font-weight:600; color:var(--ink); margin:14px 0 6px; }
+  input[type=text], textarea, select{
+    width:100%; border:1.5px solid var(--line); border-radius:14px;
+    padding:11px 14px; font-family:inherit; font-size:14px; background:#fffafb; color:var(--ink);
+  }
+  textarea{ resize:vertical; min-height:70px; }
+  input:focus, textarea:focus, select:focus{ outline:none; border-color:var(--pink); }
+  .count{ text-align:right; font-size:11px; color:var(--ink-soft); }
+
+  .row{ display:flex; gap:10px; }
+  .row > *{ flex:1; }
+
+  .color-field{ display:flex; align-items:center; gap:10px; border:1.5px solid var(--line); border-radius:14px; padding:8px 12px; }
+  .color-field input[type=color]{ width:34px; height:34px; border:none; border-radius:10px; padding:0; background:none; }
+  .color-field input[type=text]{ border:none; padding:0; flex:1; }
+
+  .pillgroup{ display:flex; gap:8px; margin-top:6px; }
+  .pill{
+    flex:1; text-align:center; padding:10px 6px; border-radius:12px; border:1.5px solid var(--line);
+    font-size:13px; cursor:pointer; background:#fffafb; color:var(--ink-soft); user-select:none;
+  }
+  .pill.active{ border-color:var(--pink-deep); background:var(--pink-soft); color:var(--pink-deep); font-weight:700; }
+
+  .toggle-row{ display:flex; align-items:center; justify-content:space-between; margin-top:14px; }
+  .switch{ position:relative; width:44px; height:26px; }
+  .switch input{ opacity:0; width:0; height:0; }
+  .slider{ position:absolute; inset:0; background:var(--line); border-radius:99px; transition:.2s; cursor:pointer; }
+  .slider:before{ content:""; position:absolute; width:20px; height:20px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+  .switch input:checked + .slider{ background:var(--pink); }
+  .switch input:checked + .slider:before{ transform:translateX(18px); }
+
+  .dropzone{
+    border:2px dashed var(--pink); border-radius:16px; padding:28px 16px; text-align:center;
+    color:var(--pink-deep); background:var(--pink-soft); cursor:pointer; font-weight:600; font-size:14px;
+  }
+  .dropzone small{ display:block; margin-top:4px; font-weight:400; color:var(--ink-soft); }
+  .thumb-card{
+    display:flex; align-items:center; gap:12px; border:1.5px solid var(--line); border-radius:14px; padding:10px; margin-top:12px;
+  }
+  .thumb-card img{ width:56px; height:56px; object-fit:cover; border-radius:10px; }
+  .thumb-meta{ flex:1; font-size:12px; color:var(--ink-soft); overflow:hidden; }
+  .thumb-meta b{ display:block; color:var(--ink); font-size:13px; }
+  .icon-btn{ border:none; background:var(--pink-soft); color:var(--pink-deep); width:32px; height:32px; border-radius:10px; cursor:pointer; font-size:14px; }
+
+  .field-item{ border:1.5px solid var(--line); border-radius:14px; padding:12px; margin-top:10px; position:relative; }
+  .field-item .icon-btn{ position:absolute; top:8px; right:8px; }
+
+  .preview-embed{
+    border-left:4px solid var(--pink-deep); background:#fbfbfd; border-radius:8px; padding:14px 14px 14px 12px; margin-top:14px;
+  }
+  .preview-embed .author{ display:flex; align-items:center; gap:6px; font-size:12px; color:#555; margin-bottom:4px; }
+  .preview-embed .title{ font-weight:700; font-size:15px; margin-bottom:4px; }
+  .preview-embed .desc{ font-size:13px; color:#444; white-space:pre-wrap; }
+  .preview-embed img.main{ width:100%; border-radius:8px; margin-top:10px; display:block; }
+  .preview-embed .footer{ font-size:11px; color:#888; margin-top:8px; }
+  .preview-embed .fields{ display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+  .preview-embed .fld{ font-size:12px; }
+  .preview-embed .fld b{ display:block; font-size:11px; color:#555; }
+
+  .btn{
+    width:100%; border:none; border-radius:14px; padding:14px; font-weight:700; font-size:15px;
+    cursor:pointer; font-family:inherit; margin-top:14px;
+  }
+  .btn-primary{ background:linear-gradient(135deg,var(--pink),var(--pink-deep)); color:#fff; box-shadow:0 8px 18px rgba(255,143,163,.35); }
+  .btn-secondary{ background:var(--pink-soft); color:var(--pink-deep); }
+  .btn-ghost{ background:transparent; color:var(--ink-soft); }
+  .navrow{ display:flex; gap:10px; }
+  .navrow .btn{ margin-top:14px; }
+
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:#fff; padding:10px 18px; border-radius:12px; font-size:13px;
+    opacity:0; pointer-events:none; transition:.25s;
+  }
+  .toast.show{ opacity:1; }
+
+  .step{ display:none; }
+  .step.active{ display:block; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="card">
+    <div class="eyebrow">🐳 Anyaluga · Welcome Designer</div>
+    <h1 id="stepTitle">ตั้งค่า Welcome</h1>
+    <p class="sub" id="stepSub">ออกแบบข้อความต้อนรับสำหรับสมาชิกใหม่</p>
+    <div class="progress" id="progress"></div>
+
+    <!-- Step 1: ข้อความ -->
+    <div class="step active" data-step="1">
+      <label>หัวข้อ</label>
+      <input type="text" id="f_title" maxlength="100">
+      <div class="count"><span id="c_title">0</span>/100</div>
+
+      <label>คำอธิบาย</label>
+      <textarea id="f_desc" maxlength="1000"></textarea>
+      <div class="count"><span id="c_desc">0</span>/1000</div>
+      <p class="sub" style="margin-top:6px">ใช้ตัวแปรได้: <code>{user}</code> <code>{server_name}</code> <code>{server_membercount}</code></p>
+    </div>
+
+    <!-- Step 2: รูปภาพ -->
+    <div class="step" data-step="2">
+      <div class="dropzone" id="dropzone">
+        📤 แตะเพื่ออัปโหลดรูปภาพ
+        <small>รองรับไฟล์ .png .jpg .jpeg .webp .gif</small>
+      </div>
+      <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+      <div class="thumb-card" id="thumbCard" style="display:none">
+        <img id="thumbImg" src="">
+        <div class="thumb-meta"><b id="thumbName">image.png</b><span id="thumbSize"></span></div>
+        <button class="icon-btn" id="removeImage">🗑</button>
+      </div>
+    </div>
+
+    <!-- Step 3: สไตล์ -->
+    <div class="step" data-step="3">
+      <label>สีหลัก (แถบ embed)</label>
+      <div class="color-field"><input type="color" id="c_color_picker"><input type="text" id="f_color"></div>
+
+      <label>สีข้อความบนรูป</label>
+      <div class="color-field"><input type="color" id="c_text_picker"><input type="text" id="f_text_color"></div>
+
+      <label>สีกรอบรูป</label>
+      <div class="color-field"><input type="color" id="c_border_picker"><input type="text" id="f_border_color" placeholder="เว้นว่าง = ไม่มีกรอบ"></div>
+
+      <label>ฟอนต์</label>
+      <select id="f_font">
+        <option value="">ไม่ใช้ฟอนต์ (ใช้รูปตรง ๆ)</option>
+        <option value="mali">Mali (ลายมือกลม น่ารัก)</option>
+        <option value="pattaya">Pattaya (เก๋ มีเอกลักษณ์)</option>
+        <option value="playpen_sans_thai">Playpen Sans Thai (หนา เด่น)</option>
+        <option value="changa_one">Changa One ⚠️ ไม่รองรับไทย</option>
+        <option value="playwrite_guides">Playwrite DE LA Guides ⚠️ ไม่รองรับไทย</option>
+      </select>
+
+      <div class="toggle-row"><span>แสดง Avatar สมาชิก</span>
+        <label class="switch"><input type="checkbox" id="f_avatar_enabled" checked><span class="slider"></span></label>
+      </div>
+      <label>ตำแหน่ง Avatar</label>
+      <div class="pillgroup" data-group="avatar_position">
+        <div class="pill" data-value="top">บน</div>
+        <div class="pill" data-value="center">กลาง</div>
+        <div class="pill" data-value="bottom">ล่าง</div>
+      </div>
+      <label>ตำแหน่งข้อความ</label>
+      <div class="pillgroup" data-group="text_position">
+        <div class="pill" data-value="top">บน</div>
+        <div class="pill" data-value="center">กลาง</div>
+        <div class="pill" data-value="bottom">ล่าง</div>
+      </div>
+    </div>
+
+    <!-- Step 4: ข้อมูลเพิ่มเติม -->
+    <div class="step" data-step="4">
+      <div class="toggle-row"><span>Author</span>
+        <label class="switch"><input type="checkbox" id="t_author"><span class="slider"></span></label>
+      </div>
+      <div id="authorFields" style="display:none">
+        <label>ชื่อ Author</label>
+        <input type="text" id="f_author_name" maxlength="256">
+      </div>
+
+      <div class="toggle-row"><span>Footer</span>
+        <label class="switch"><input type="checkbox" id="t_footer"><span class="slider"></span></label>
+      </div>
+      <div id="footerFields" style="display:none">
+        <label>ข้อความ Footer</label>
+        <input type="text" id="f_footer_text" maxlength="256">
+      </div>
+
+      <label style="margin-top:18px">Fields (สูงสุด 3 ช่อง)</label>
+      <div id="fieldsList"></div>
+      <button class="btn btn-secondary" id="addFieldBtn" type="button">+ เพิ่ม Field</button>
+    </div>
+
+    <!-- Step 5: พรีวิว -->
+    <div class="step" data-step="5">
+      <div class="preview-embed" id="previewEmbed"></div>
+      <button class="btn btn-secondary" id="refreshPreview" type="button">🔄 รีเฟรชตัวอย่าง</button>
+    </div>
+
+    <!-- Step 6: บันทึก / Preset -->
+    <div class="step" data-step="6">
+      <label>บันทึกเป็น Preset (ไม่บังคับ)</label>
+      <div class="row">
+        <input type="text" id="f_preset_name" placeholder="เช่น christmas, ปกติ">
+        <button class="btn btn-secondary" id="savePresetBtn" type="button" style="margin-top:0;width:auto;padding:11px 16px">บันทึก</button>
+      </div>
+
+      <label>โหลด Preset ที่บันทึกไว้</label>
+      <select id="presetSelect">
+        <option value="">— เลือก preset —</option>
+        {% for p in presets %}
+        <option value="{{ p }}">{{ p }}</option>
+        {% endfor %}
+      </select>
+
+      <button class="btn btn-primary" id="saveAllBtn" type="button">✅ บันทึกการตั้งค่า</button>
+    </div>
+
+    <div class="navrow">
+      <button class="btn btn-ghost" id="backBtn" type="button" style="display:none">⬅ ย้อนกลับ</button>
+      <button class="btn btn-primary" id="nextBtn" type="button">ถัดไป →</button>
+    </div>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const GUILD_ID = "{{ guild_id }}";
+const state = Object.assign({
+  title: "", description: "", color: "#a0d2eb", text_color: "#ffffff", border_color: null,
+  font_key: null, avatar_position: "center", avatar_size: 128, avatar_enabled: true,
+  text_position: "bottom", author_name: null, footer_text: null, fields: [], image_url: null,
+}, JSON.parse('{{ welcome | tojson | safe }}'));
+
+const STEP_TITLES = {
+  1: ["ตั้งค่า Welcome", "ออกแบบข้อความต้อนรับสำหรับสมาชิกใหม่"],
+  2: ["อัปโหลดรูปภาพ", "รองรับไฟล์ .png .jpg .jpeg .webp .gif"],
+  3: ["ออกแบบสไตล์", "สี ฟอนต์ และตำแหน่งของ avatar/ข้อความ"],
+  4: ["ข้อมูลเพิ่มเติม", "Author, Footer และ Fields เสริม"],
+  5: ["ตัวอย่าง (Preview)", "หน้าตาจริงเมื่อสมาชิกใหม่เข้าเซิร์ฟ"],
+  6: ["บันทึกการตั้งค่า", "บันทึกเป็น preset หรือใช้งานจริงได้เลย"],
+};
+const TOTAL_STEPS = 6;
+let step = 1;
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+function renderProgress(){
+  const el = document.getElementById('progress');
+  el.innerHTML = '';
+  for(let i=1;i<=TOTAL_STEPS;i++){
+    const i_el = document.createElement('i');
+    if(i<=step) i_el.classList.add('done');
+    el.appendChild(i_el);
+  }
+}
+
+function goToStep(n){
+  step = Math.max(1, Math.min(TOTAL_STEPS, n));
+  document.querySelectorAll('.step').forEach(s => s.classList.toggle('active', +s.dataset.step === step));
+  document.getElementById('stepTitle').textContent = STEP_TITLES[step][0];
+  document.getElementById('stepSub').textContent = STEP_TITLES[step][1];
+  document.getElementById('backBtn').style.display = step === 1 ? 'none' : 'block';
+  document.getElementById('nextBtn').style.display = step === TOTAL_STEPS ? 'none' : 'block';
+  renderProgress();
+  if(step === 5) renderPreview();
+}
+
+// ---- Step 1 ----
+const f_title = document.getElementById('f_title');
+const f_desc = document.getElementById('f_desc');
+f_title.value = state.title || ''; f_desc.value = state.description || '';
+document.getElementById('c_title').textContent = f_title.value.length;
+document.getElementById('c_desc').textContent = f_desc.value.length;
+f_title.addEventListener('input', () => { state.title = f_title.value; document.getElementById('c_title').textContent = f_title.value.length; });
+f_desc.addEventListener('input', () => { state.description = f_desc.value; document.getElementById('c_desc').textContent = f_desc.value.length; });
+
+// ---- Step 2 ----
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const thumbCard = document.getElementById('thumbCard');
+dropzone.addEventListener('click', () => fileInput.click());
+function showThumb(url, name, sizeText){
+  document.getElementById('thumbImg').src = url;
+  document.getElementById('thumbName').textContent = name;
+  document.getElementById('thumbSize').textContent = sizeText || '';
+  thumbCard.style.display = 'flex';
+  dropzone.style.display = 'none';
+}
+if(state.image_url) showThumb(state.image_url, 'รูปปัจจุบัน', '');
+fileInput.addEventListener('change', async () => {
+  const file = fileInput.files[0];
+  if(!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  try{
+    const res = await fetch(`/api/onboard/${GUILD_ID}/upload-image`, { method:'POST', body: fd });
+    const json = await res.json();
+    if(!res.ok) throw new Error(json.detail || 'อัปโหลดไม่สำเร็จ');
+    state.image_url = json.image_url;
+    showThumb(json.image_url, file.name, (file.size/1024).toFixed(1) + ' KB');
+    toast('อัปโหลดรูปสำเร็จ');
+  }catch(e){ toast('⚠️ ' + e.message); }
+});
+document.getElementById('removeImage').addEventListener('click', () => {
+  state.image_url = null; thumbCard.style.display = 'none'; dropzone.style.display = 'block'; fileInput.value = '';
+});
+
+// ---- Step 3 ----
+function bindColor(pickerId, textId, key, fallback){
+  const picker = document.getElementById(pickerId), text = document.getElementById(textId);
+  const val = state[key] || fallback;
+  picker.value = val; text.value = val || '';
+  picker.addEventListener('input', () => { text.value = picker.value; state[key] = picker.value; });
+  text.addEventListener('input', () => { state[key] = text.value || null; if(/^#[0-9a-fA-F]{6}$/.test(text.value)) picker.value = text.value; });
+}
+bindColor('c_color_picker','f_color','color','#a0d2eb');
+bindColor('c_text_picker','f_text_color','text_color','#ffffff');
+bindColor('c_border_picker','f_border_color','border_color','#000000');
+document.getElementById('f_border_color').value = state.border_color || '';
+
+const f_font = document.getElementById('f_font');
+f_font.value = state.font_key || '';
+f_font.addEventListener('change', () => { state.font_key = f_font.value || null; });
+
+const f_avatar_enabled = document.getElementById('f_avatar_enabled');
+f_avatar_enabled.checked = state.avatar_enabled !== false;
+f_avatar_enabled.addEventListener('change', () => { state.avatar_enabled = f_avatar_enabled.checked; });
+
+document.querySelectorAll('.pillgroup').forEach(group => {
+  const key = group.dataset.group;
+  const pills = group.querySelectorAll('.pill');
+  pills.forEach(p => {
+    if(p.dataset.value === (state[key] || 'center')) p.classList.add('active');
+    p.addEventListener('click', () => {
+      pills.forEach(x => x.classList.remove('active'));
+      p.classList.add('active');
+      state[key] = p.dataset.value;
+    });
+  });
+});
+
+// ---- Step 4 ----
+const t_author = document.getElementById('t_author'), authorFields = document.getElementById('authorFields');
+const t_footer = document.getElementById('t_footer'), footerFields = document.getElementById('footerFields');
+const f_author_name = document.getElementById('f_author_name'), f_footer_text = document.getElementById('f_footer_text');
+t_author.checked = !!state.author_name; authorFields.style.display = t_author.checked ? 'block' : 'none';
+t_footer.checked = !!state.footer_text; footerFields.style.display = t_footer.checked ? 'block' : 'none';
+f_author_name.value = state.author_name || ''; f_footer_text.value = state.footer_text || '';
+t_author.addEventListener('change', () => { authorFields.style.display = t_author.checked ? 'block' : 'none'; if(!t_author.checked) state.author_name = null; });
+t_footer.addEventListener('change', () => { footerFields.style.display = t_footer.checked ? 'block' : 'none'; if(!t_footer.checked) state.footer_text = null; });
+f_author_name.addEventListener('input', () => { state.author_name = f_author_name.value || null; });
+f_footer_text.addEventListener('input', () => { state.footer_text = f_footer_text.value || null; });
+
+const fieldsList = document.getElementById('fieldsList');
+function renderFields(){
+  fieldsList.innerHTML = '';
+  state.fields = (state.fields || []).slice(0,3);
+  state.fields.forEach((fld, idx) => {
+    const div = document.createElement('div');
+    div.className = 'field-item';
+    div.innerHTML = `
+      <button class="icon-btn" data-idx="${idx}">🗑</button>
+      <label>หัวข้อ</label><input type="text" class="fname" data-idx="${idx}" value="${fld.name || ''}">
+      <label>ค่า</label><input type="text" class="fvalue" data-idx="${idx}" value="${fld.value || ''}">
+    `;
+    fieldsList.appendChild(div);
+  });
+  fieldsList.querySelectorAll('.icon-btn').forEach(btn => btn.addEventListener('click', () => {
+    state.fields.splice(+btn.dataset.idx, 1); renderFields();
+  }));
+  fieldsList.querySelectorAll('.fname').forEach(inp => inp.addEventListener('input', () => {
+    state.fields[+inp.dataset.idx].name = inp.value;
+  }));
+  fieldsList.querySelectorAll('.fvalue').forEach(inp => inp.addEventListener('input', () => {
+    state.fields[+inp.dataset.idx].value = inp.value;
+  }));
+  document.getElementById('addFieldBtn').style.display = state.fields.length >= 3 ? 'none' : 'block';
+}
+document.getElementById('addFieldBtn').addEventListener('click', () => {
+  if((state.fields||[]).length >= 3) return;
+  state.fields = [...(state.fields||[]), {name:'', value:'', inline:true}];
+  renderFields();
+});
+renderFields();
+
+// ---- Step 5: Preview ----
+function renderVars(text){
+  return (text || '')
+    .replace(/\{user\}/g,'@สมาชิกใหม่').replace(/\{server_name\}/g,'My Server')
+    .replace(/\{server_membercount\}/g,'1,532');
+}
+function renderPreview(){
+  const el = document.getElementById('previewEmbed');
+  el.style.borderLeftColor = state.color || '#FF8FA3';
+  let html = '';
+  if(state.author_name) html += `<div class="author">👤 ${renderVars(state.author_name)}</div>`;
+  html += `<div class="title">${renderVars(state.title) || '(ยังไม่ตั้งหัวข้อ)'}</div>`;
+  html += `<div class="desc">${renderVars(state.description) || '(ยังไม่ตั้งคำอธิบาย)'}</div>`;
+  if((state.fields||[]).length){
+    html += '<div class="fields">' + state.fields.map(f => `<div class="fld"><b>${f.name||''}</b>${renderVars(f.value)||''}</div>`).join('') + '</div>';
+  }
+  if(state.image_url) html += `<img class="main" src="${state.image_url}">`;
+  if(state.footer_text) html += `<div class="footer">${renderVars(state.footer_text)}</div>`;
+  el.innerHTML = html;
+}
+document.getElementById('refreshPreview').addEventListener('click', renderPreview);
+
+// ---- Step 6: Save / Preset ----
+document.getElementById('savePresetBtn').addEventListener('click', async () => {
+  const name = document.getElementById('f_preset_name').value.trim();
+  if(!name){ toast('⚠️ ใส่ชื่อ preset ก่อน'); return; }
+  const res = await fetch(`/api/onboard/${GUILD_ID}/preset/save`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({...state, name})
+  });
+  if(res.ok) toast(`บันทึก preset "${name}" แล้ว`); else toast('⚠️ บันทึก preset ไม่สำเร็จ');
+});
+document.getElementById('presetSelect').addEventListener('change', async (e) => {
+  const name = e.target.value; if(!name) return;
+  const res = await fetch(`/api/onboard/${GUILD_ID}/preset/${encodeURIComponent(name)}`);
+  const json = await res.json();
+  if(res.ok){ Object.assign(state, json.config); toast(`โหลด preset "${name}" แล้ว`); goToStep(1); location.reload(); }
+});
+document.getElementById('saveAllBtn').addEventListener('click', async () => {
+  const res = await fetch(`/api/onboard/${GUILD_ID}/welcome`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(state)
+  });
+  if(res.ok) toast('✅ บันทึกการตั้งค่าแล้ว!'); else toast('⚠️ บันทึกไม่สำเร็จ');
+});
+
+// ---- Nav ----
+document.getElementById('nextBtn').addEventListener('click', () => goToStep(step + 1));
+document.getElementById('backBtn').addEventListener('click', () => goToStep(step - 1));
+
+goToStep(1);
+</script>
+</body>
+</html>
