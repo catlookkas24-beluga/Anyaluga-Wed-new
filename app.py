@@ -47,6 +47,9 @@ app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET, same_site="lax"
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+from routers.onboarding import router as onboarding_router  # 🧙 Welcome Designer Wizard
+app.include_router(onboarding_router)
+
 
 @app.exception_handler(HTTPException)
 async def thai_friendly_http_exception_handler(request: Request, exc: HTTPException):
