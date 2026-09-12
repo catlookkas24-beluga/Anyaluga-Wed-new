@@ -10,9 +10,14 @@ text_color กลับเข้ามาใน welcome defaults (ยืนย�
 """
 
 import os
+import sys
 from datetime import datetime, timedelta, timezone
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorGridFSBucket
 from bson import ObjectId
+
+# 🩺 SCHEMA VERSION MARKER — เปลี่ยนทุกครั้งที่แก้ DEFAULT_CONFIG หรือ diagnostic นี้
+# ใช้เทียบว่า process ที่รันอยู่จริงบน Render โหลดไฟล์เวอร์ชันไหน (grep หา marker นี้ใน log)
+DB_SCHEMA_VERSION = "2026-09-12-avatar-textcolor-reconciled"
 
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "beluga_control")
@@ -20,6 +25,29 @@ MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "beluga_control")
 _client = AsyncIOMotorClient(MONGO_URI)
 _db = _client[MONGO_DB_NAME]
 guilds = _db["guild_configs"]
+
+
+def _redact_mongo_uri(uri: str) -> str:
+    if not uri:
+        return "(ไม่ได้ตั้ง MONGO_URI)"
+    if "@" in uri:
+        scheme_and_creds, rest = uri.rsplit("@", 1)
+        scheme = scheme_and_creds.split("//")[0]
+        return f"{scheme}//***:***@{rest}"
+    return uri
+
+
+# 🩺 DIAGNOSTIC — ใช้ print() ล้วน ๆ ไม่ผ่าน logging module เลย เพราะ logging ต้องพึ่ง handler/config
+# ที่อาจยังไม่ถูกตั้งตอนไฟล์นี้ถูก import (เช่น import db ใน app.py มาก่อน logging.basicConfig())
+# print() ไป stdout ตรง ๆ แบบนี้ Render (หรือ log collector ไหนก็ตาม) จับได้แน่นอน 100% ไม่มีทาง
+# ถูกกรองทิ้งเงียบ ๆ เหมือน logging เคยเป็นมาก่อน — ถ้ายังไม่เห็นบรรทัดนี้ใน log แปลว่าไฟล์นี้
+# (เวอร์ชันนี้) ไม่ได้ถูก import ขึ้นมาจริง ๆ (deploy เก่าค้าง / cache / import ไฟล์ผิดตัว)
+print(
+    f"[BELUGA-DB-BOOT] db.py version={DB_SCHEMA_VERSION!r} loaded from file={__file__} "
+    f"| MongoDB host={_redact_mongo_uri(MONGO_URI)} db={MONGO_DB_NAME!r} collection=guild_configs",
+    file=sys.stderr,
+    flush=True,
+)
 
 # 📊 Activity/Stats Dashboard — เก็บสถิติข้อความ/เวลาเข้าเสียงแยกกัน 2 collection:
 # - activity_totals: ยอดรวมตลอดกาลต่อคน (rank เร็ว ไม่ต้อง aggregate ทุกครั้ง)
