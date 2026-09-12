@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+{% block title %}{{ schema.title }} — Beluga Dashboard{% endblock %}
+{% block body %}
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand">🐋 Beluga</div>
+    <nav class="sidebar-nav">
+      <a href="/dashboard/{{ guild_id }}" class="nav-item">⚙️ ภาพรวม</a>
+      <a href="/dashboard/{{ guild_id }}/welcome" class="nav-item {{ 'active' if section == 'welcome' }}">🎉 ต้อนรับ</a>
+      <a href="/dashboard/{{ guild_id }}/goodbye" class="nav-item {{ 'active' if section == 'goodbye' }}">👋 อำลา</a>
+      <a href="/dashboard/{{ guild_id }}/verify" class="nav-item {{ 'active' if section == 'verify' }}">🔐 ยืนยันตัวตน</a>
+      <a href="/dashboard/{{ guild_id }}/rules" class="nav-item {{ 'active' if section == 'rules' }}">📜 กฎ</a>
+      <a href="/dashboard/{{ guild_id }}/antiraid" class="nav-item {{ 'active' if section == 'antiraid' }}">🛡️ Anti-Raid</a>
+      <a href="/dashboard/{{ guild_id }}/autorole" class="nav-item {{ 'active' if section == 'autorole' }}">🏅 Auto Role</a>
+      <a href="/dashboard/{{ guild_id }}/activity" class="nav-item {{ 'active' if section == 'activity' }}">📊 Activity</a>
+      <a href="/dashboard/{{ guild_id }}/ticket" class="nav-item {{ 'active' if section == 'ticket' }}">🎫 Ticket</a>
+      <a href="/dashboard/{{ guild_id }}/logging" class="nav-item {{ 'active' if section == 'logging' }}">🧾 Logging</a>
+      <a href="/dashboard/{{ guild_id }}/tools/theme" class="nav-item">🎨 ตั้งสีธีมรวม</a>
+    </nav>
+    <a href="/guilds" class="sidebar-back">← เปลี่ยนเซิร์ฟเวอร์</a>
+  </aside>
+
+  <main class="content {{ 'content-split' if schema.preview }}">
+    <div class="form-col">
+      <h1>{{ schema.title }}</h1>
+      <div class="alert alert-success" id="saveAlert" style="display:none;">✅ บันทึกเรียบร้อยแล้ว</div>
+      <div class="alert alert-danger" id="errorAlert" style="display:none;"></div>
+      <div class="alert alert-warning" id="dirtyAlert" style="display:none;">✏️ มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก</div>
+      {% if schema.note %}
+        <div class="alert alert-info">ℹ️ {{ schema.note }}</div>
+      {% endif %}
+
+      <form method="post" class="edit-form" id="sectionForm">
+        {% for field in schema.fields %}
+        <div class="form-group">
+          <label for="{{ field.key }}">{{ field.label }}</label>
+
+          {% if field.type == 'text' %}
+            <input type="text" id="{{ field.key }}" name="{{ field.key }}" value="{{ values.get(field.key) or '' }}">
+
+          {% elif field.type == 'textarea' %}
+            <textarea id="{{ field.key }}" name="{{ field.key }}" rows="4">{{ values.get(field.key) or '' }}</textarea>
+
+          {% elif field.type == 'number' %}
+            <input type="number" id="{{ field.key }}" name="{{ field.key }}" value="{{ values.get(field.key, 0) }}">
+
+          {% elif field.type == 'color' %}
+            <div class="color-input">
+              <input type="color" id="{{ field.key }}_picker" value="{{ values.get(field.key) or '#5865f2' }}"
+                     oninput="document.getElementById('{{ field.key }}').value = this.value; document.getElementById('{{ field.key }}').dispatchEvent(new Event('input'));">
+              <input type="text" id="{{ field.key }}" name="{{ field.key }}" value="{{ values.get(field.key) or '#5865f2' }}"
+                     oninput="document.getElementById('{{ field.key }}_picker').value = this.value">
+            </div>
+
+          {% elif field.type == 'image' %}
+            <div class="image-upload" data-field="{{ field.key }}">
+              <div class="image-preview-wrap">
+                <img class="image-preview" id="{{ field.key }}_preview"
+                     src="{{ values.get(field.key) or '' }}"
+                     style="display: {{ 'block' if values.get(field.key) else 'none' }};" alt="">
+                <div class="image-preview-empty" id="{{ field.key }}_empty"
+                     style="display: {{ 'none' if values.get(field.key) else 'flex' }};">ยังไม่มีรูป</div>
+              </div>
+              <input type="hidden" id="{{ field.key }}" name="{{ field.key }}" value="{{ values.get(field.key) or '' }}">
+              <label class="btn btn-ghost btn-sm image-upload-btn">
+                📤 <span class="upload-label" id="{{ field.key }}_label">อัปโหลดรูป</span>
+                <input type="file" accept="image/png,image/jpeg,image/webp" style="display:none"
+                       onchange="uploadImage(this, '{{ guild_id }}', '{{ field.key }}')">
+              </label>
+            </div>
+
+          {% elif field.type == 'checkbox' %}
+            <label class="switch-inline">
+              <input type="checkbox" id="{{ field.key }}" name="{{ field.key }}" {{ 'checked' if values.get(field.key) }}>
+              <span class="switch-track"><span class="switch-knob"></span></span>
+            </label>
+
+          {% elif field.type == 'font' %}
+            <select id="{{ field.key }}" name="{{ field.key }}">
+              {% for f_key, f_label in font_choices %}
+              <option value="{{ f_key }}" {{ 'selected' if (values.get(field.key) or '') == f_key }}>{{ f_label }}</option>
+              {% endfor %}
+            </select>
+
+          {% elif field.type == 'channel' %}
+            <select id="{{ field.key }}" name="{{ field.key }}">
+              <option value="">— ไม่เลือก —</option>
+              {% for ch in channels %}
+              <option value="{{ ch.id }}" {{ 'selected' if values.get(field.key)|string == ch.id }} data-name="{{ ch.name }}"># {{ ch.name }}</option>
+              {% endfor %}
+            </select>
+
+          {% elif field.type == 'category' %}
+            <select id="{{ field.key }}" name="{{ field.key }}">
+              <option value="">— ไม่เลือก —</option>
+              {% for cat in categories %}
+              <option value="{{ cat.id }}" {{ 'selected' if values.get(field.key)|string == cat.id }}>📁 {{ cat.name }}</option>
+              {% endfor %}
+            </select>
+
+          {% elif field.type == 'role' %}
+            <select id="{{ field.key }}" name="{{ field.key }}">
+              <option value="">— ไม่เลือก —</option>
+              {% for r in roles %}
+              <option value="{{ r.id }}" {{ 'selected' if values.get(field.key)|string == r.id }}>@{{ r.name }}</option>
+              {% endfor %}
+            </select>
+          {% endif %}
+        </div>
+        {% endfor %}
+
+        <div class="save-bar">
+          <button type="submit" class="btn btn-primary" id="saveBtn">💾 บันทึก</button>
+          <span class="save-status" id="saveStatus"></span>
+        </div>
+      </form>
+    </div>
+
+    {% if schema.preview == 'embed' %}
+    <div class="preview-col">
+      <div class="preview-sticky">
+        <div class="preview-heading">👀 ตัวอย่าง (Preview) — ไม่ใช่ข้อความที่ถูกส่งจริง</div>
+        <div class="discord-mock">
+          <div class="discord-mock-channel">
+            # <span id="previewChannelName">{{ 'เลือกห้องด้านซ้าย' }}</span>
+          </div>
+          <div class="discord-embed" id="previewEmbed">
+            <div class="discord-embed-bar" id="previewBar"></div>
+            <div class="discord-embed-body">
+              <div class="discord-embed-title" id="previewTitle"></div>
+              <div class="discord-embed-desc" id="previewDesc"></div>
+              <img class="discord-embed-image" id="previewImage" style="display:none;">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </main>
+</div>
+
+<script>
+  // ---------------- Image upload (GridFS ผ่าน /upload-image ตัวเดิม) ----------------
+  async function uploadImage(input, guildId, fieldKey) {
+    const file = input.files[0];
+    if (!file) return;
+    const label = document.getElementById(fieldKey + '_label');
+    const preview = document.getElementById(fieldKey + '_preview');
+    const empty = document.getElementById(fieldKey + '_empty');
+    const hidden = document.getElementById(fieldKey);
+    const originalLabel = label.textContent;
+    label.textContent = 'กำลังอัปโหลด...';
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch(`/dashboard/${guildId}/upload-image`, { method: 'POST', body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'อัปโหลดไม่สำเร็จ');
+      }
+      const data = await res.json();
+      hidden.value = data.url;
+      preview.src = data.url;
+      preview.style.display = 'block';
+      empty.style.display = 'none';
+      label.textContent = '✅ อัปโหลดแล้ว';
+      setTimeout(() => { label.textContent = 'เปลี่ยนรูป'; }, 1500);
+      hidden.dispatchEvent(new Event('input'));  // สั่งให้ dirty-tracking + preview อัปเดตตาม
+    } catch (e) {
+      alert(e.message || 'อัปโหลดรูปไม่สำเร็จ ลองใหม่อีกครั้งครับ');
+      label.textContent = originalLabel;
+    } finally {
+      input.value = '';  // เคลียร์ input กันเลือกไฟล์เดิมซ้ำแล้ว onchange ไม่ยิง
+    }
+  }
+
+  // ---------------- Save: AJAX จริง พร้อมสถานะ Saving/Saved/Failed จริงตามผลลัพธ์ ----------------
+  const form = document.getElementById('sectionForm');
+  const saveBtn = document.getElementById('saveBtn');
+  const saveStatus = document.getElementById('saveStatus');
+  const saveAlert = document.getElementById('saveAlert');
+  const errorAlert = document.getElementById('errorAlert');
+  const dirtyAlert = document.getElementById('dirtyAlert');
+  let isDirty = false;
+
+  function setDirty(v) {
+    isDirty = v;
+    dirtyAlert.style.display = v ? 'block' : 'none';
+    if (v) { saveAlert.style.display = 'none'; }
+  }
+
+  form.addEventListener('input', () => setDirty(true));
+  form.addEventListener('change', () => setDirty(true));
+
+  window.addEventListener('beforeunload', (e) => {
+    if (!isDirty) return;
+    e.preventDefault();
+    e.returnValue = '';
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'กำลังบันทึก...';
+    saveStatus.textContent = '';
+    errorAlert.style.display = 'none';
+    saveAlert.style.display = 'none';
+
+    try {
+      const res = await fetch(window.location.pathname, { method: 'POST', body: new FormData(form) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.detail || 'บันทึกไม่สำเร็จ');
+      }
+      saveBtn.textContent = '✓ บันทึกแล้ว';
+      saveAlert.style.display = 'block';
+      setDirty(false);
+      setTimeout(() => { saveBtn.textContent = '💾 บันทึก'; }, 1800);
+    } catch (err) {
+      saveBtn.textContent = '⚠ บันทึกไม่สำเร็จ';
+      errorAlert.textContent = '⚠ ' + (err.message || 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้งครับ');
+      errorAlert.style.display = 'block';
+      setTimeout(() => { saveBtn.textContent = '💾 บันทึก'; }, 2200);
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  // ---------------- Live preview (welcome / goodbye) ----------------
+  function escapeHtml(str) {
+    return (str || '').replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+  function renderVars(text) {
+    return escapeHtml(text)
+      .replace(/\{user\}/g, '@สมาชิกใหม่')
+      .replace(/\{server_name\}/g, 'My Server')
+      .replace(/\{server_membercount\}/g, '1,532')
+      .replace(/\{user_name\}/g, 'สมาชิกใหม่');
+  }
+
+  const previewEmbed = document.getElementById('previewEmbed');
+  if (previewEmbed) {
+    const titleEl = document.getElementById('title');
+    const descEl = document.getElementById('description');
+    const colorEl = document.getElementById('color');
+    const imageEl = document.getElementById('image_url');
+    const channelEl = document.getElementById('channel_id');
+
+    function renderPreview() {
+      document.getElementById('previewBar').style.background = (colorEl && colorEl.value) || '#5865f2';
+      document.getElementById('previewTitle').innerHTML = titleEl ? (renderVars(titleEl.value) || '(ยังไม่ตั้งหัวข้อ)') : '';
+      document.getElementById('previewDesc').innerHTML = descEl ? (renderVars(descEl.value) || '(ยังไม่ตั้งคำอธิบาย)') : '';
+
+      const img = document.getElementById('previewImage');
+      if (imageEl && imageEl.value) {
+        img.src = imageEl.value;
+        img.style.display = 'block';
+      } else {
+        img.style.display = 'none';
+      }
+
+      const chName = document.getElementById('previewChannelName');
+      if (channelEl && chName) {
+        const opt = channelEl.options[channelEl.selectedIndex];
+        chName.textContent = (opt && opt.dataset && opt.dataset.name) ? opt.dataset.name : 'เลือกห้องด้านซ้าย';
+      }
+    }
+
+    [titleEl, descEl, colorEl, imageEl, channelEl].forEach((el) => {
+      if (el) el.addEventListener('input', renderPreview);
+      if (el) el.addEventListener('change', renderPreview);
+    });
+    renderPreview();
+  }
+</script>
+{% endblock %}
