@@ -3,35 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ guild.name }} — Anyaluga</title>
+<title>{{ guild_name }} — Anyaluga</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{ --pink:#FFB6C1; --pink-deep:#FF8FA3; --pink-soft:#FFE3E8; --ink:#3B2E33; --ink-soft:#8A7B80; --line:#F3D9DE; --bg:#FFF6F8; --card:#fff; }
   *{box-sizing:border-box}
-  body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Noto Sans Thai','Baloo 2',sans-serif; min-height:100vh; padding-bottom:76px; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Noto Sans Thai','Baloo 2',sans-serif; min-height:100vh; padding-bottom:36px; }
   .app{ max-width:460px; margin:0 auto; padding:20px 16px; }
 
   .topbar{ display:flex; align-items:center; gap:12px; }
   .topbar .avatar{ width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,var(--pink),var(--pink-deep)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; }
   .topbar .name{ font-family:'Baloo 2',sans-serif; font-weight:700; font-size:16px; }
-  .topbar .sub{ font-size:12px; color:var(--ink-soft); display:flex; align-items:center; gap:4px; }
+  .topbar .sub{ font-size:12px; color:var(--ink-soft); }
   .topbar .switch-server{ margin-left:auto; width:36px; height:36px; border-radius:10px; border:1.5px solid var(--line); background:#fff; display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--ink); }
 
   .hero{ background:linear-gradient(135deg,var(--pink),var(--pink-deep)); border-radius:20px; padding:20px; color:#fff; margin:20px 0 8px; }
   .hero b{ font-family:'Baloo 2',sans-serif; font-size:18px; display:block; margin-bottom:2px; }
   .hero span{ font-size:13px; opacity:.9; }
-  .hero .status{ display:flex; align-items:center; gap:6px; font-size:12px; margin-top:10px; }
-  .hero .dot{ width:8px; height:8px; border-radius:50%; background:#39E58C; }
 
   .section-label{ font-size:13px; font-weight:700; color:var(--ink-soft); margin:22px 0 10px; }
 
   .sys-card{ display:flex; align-items:center; gap:12px; background:var(--card); border:1.5px solid var(--line); border-radius:16px; padding:13px 14px; margin-bottom:10px; }
-  .sys-card .emoji{ width:38px; height:38px; border-radius:12px; background:var(--pink-soft); display:flex; align-items:center; justify-content:center; font-size:17px; }
-  .sys-card .meta{ flex:1; cursor:pointer; }
+  .sys-card .emoji{ width:38px; height:38px; border-radius:12px; background:var(--pink-soft); display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
+  .sys-card .meta{ flex:1; cursor:pointer; text-decoration:none; color:inherit; }
   .sys-card .meta b{ display:block; font-size:14px; }
   .sys-card .meta span{ font-size:11px; color:var(--ink-soft); }
-  .sys-card .chev{ color:var(--ink-soft); font-size:16px; cursor:pointer; padding:4px; }
+  .sys-card .chev{ color:var(--ink-soft); font-size:16px; }
 
   .switch{ position:relative; width:40px; height:24px; flex-shrink:0; }
   .switch input{ opacity:0; width:0; height:0; }
@@ -40,20 +38,10 @@
   .switch input:checked + .slider{ background:#39E58C; }
   .switch input:checked + .slider:before{ transform:translateX(16px); }
 
-  .help-card{ display:flex; align-items:center; gap:12px; background:var(--card); border:1.5px solid var(--line); border-radius:16px; padding:14px; margin-top:22px; }
-  .help-card .emoji{ width:38px; height:38px; border-radius:50%; background:var(--pink-soft); display:flex; align-items:center; justify-content:center; font-size:18px; }
-  .help-card b{ display:block; font-size:13px; }
-  .help-card span{ font-size:11px; color:var(--ink-soft); }
+  .top-links{ display:flex; gap:8px; margin-top:14px; }
+  .top-links a{ flex:1; text-align:center; text-decoration:none; font-size:12px; font-weight:600; color:var(--pink-deep); background:var(--pink-soft); border-radius:12px; padding:9px; }
 
-  .bottomnav{
-    position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid var(--line);
-    display:flex; justify-content:space-around; padding:10px 0 max(10px, env(safe-area-inset-bottom));
-  }
-  .bottomnav a{ text-decoration:none; color:var(--ink-soft); font-size:11px; display:flex; flex-direction:column; align-items:center; gap:3px; }
-  .bottomnav a.active{ color:var(--pink-deep); font-weight:700; }
-  .bottomnav .ic{ font-size:18px; }
-
-  .toast{ position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:12px; font-size:13px; opacity:0; pointer-events:none; transition:.25s; }
+  .toast{ position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:12px; font-size:13px; opacity:0; pointer-events:none; transition:.25s; }
   .toast.show{ opacity:1; }
 </style>
 </head>
@@ -63,47 +51,37 @@
     <div class="avatar">🐳</div>
     <div>
       <div class="name">Anyaluga</div>
-      <div class="sub">{{ guild.name }} <span>▾</span></div>
+      <div class="sub">{{ guild_name }}</div>
     </div>
-    <a class="switch-server" href="/servers" title="เปลี่ยนเซิร์ฟเวอร์">⇄</a>
+    <a class="switch-server" href="/guilds" title="เปลี่ยนเซิร์ฟเวอร์">⇄</a>
   </div>
 
   <div class="hero">
-    <b>สวัสดีอีกครั้ง! 👋</b>
-    <span>{{ guild.name }} พร้อมใช้งานแล้ว</span>
-    <div class="status"><span class="dot"></span> ออนไลน์</div>
+    <b>สวัสดีอีกครั้ง, {{ user.username }} 👋</b>
+    <span>{{ guild_name }} พร้อมใช้งานแล้ว</span>
+  </div>
+
+  <div class="top-links">
+    <a href="/dashboard/{{ guild_id }}/tools/theme">🎨 ตั้งสีธีมรวม</a>
+    <a href="/dashboard/{{ guild_id }}/welcome/wizard">🧙 Welcome Wizard</a>
   </div>
 
   <div class="section-label">✨ {{ systems|length }} ระบบพร้อมใช้งาน</div>
 
-  {% for s in systems %}
+  {% for key, meta in systems.items() %}
+  {% set emoji = meta[0] %}
+  {% set label = meta[1] %}
   <div class="sys-card">
-    <div class="emoji">{{ s.icon }}</div>
-    <div class="meta" onclick="location.href='/onboard/{{ guild_id }}'" title="เปิดตั้งค่า {{ s.label }}">
-      <b>{{ s.label }}</b><span>{{ s.desc }}</span>
-    </div>
+    <div class="emoji">{{ emoji }}</div>
+    <a class="meta" href="{{ '/dashboard/' ~ guild_id ~ '/welcome/wizard' if key == 'welcome' else '/dashboard/' ~ guild_id ~ '/' ~ key }}">
+      <b>{{ label }}</b><span>แตะเพื่อตั้งค่า</span>
+    </a>
     <label class="switch">
-      <input type="checkbox" data-key="{{ s.key }}" {% if s.enabled %}checked{% endif %}>
+      <input type="checkbox" data-key="{{ key }}" {% if systems_enabled.get(key, True) %}checked{% endif %}>
       <span class="slider"></span>
     </label>
-    <span class="chev" onclick="location.href='/onboard/{{ guild_id }}'">›</span>
   </div>
   {% endfor %}
-
-  <div class="help-card">
-    <div class="emoji">💬</div>
-    <div>
-      <b>มีอะไรให้ช่วยไหม?</b>
-      <span>ติดต่อทีมงานได้ตลอด 24 ชม.</span>
-    </div>
-  </div>
-</div>
-
-<div class="bottomnav">
-  <a class="active" href="/dashboard/{{ guild_id }}"><span class="ic">🏠</span>หน้าแรก</a>
-  <a href="#"><span class="ic">⚙️</span>ระบบ</a>
-  <a href="#"><span class="ic">📊</span>สถิติ</a>
-  <a href="#"><span class="ic">☰</span>เมนู</a>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -114,14 +92,16 @@ function toast(msg){
   t.textContent = msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'), 1800);
 }
+// ⚠️ endpoint จริงคือ POST /dashboard/{guild_id}/toggle/{key} แบบไม่ต้องส่ง body
+// (มันจะ flip ค่าปัจจุบันในฝั่ง server เองแล้วคืน {system, enabled} มาให้)
 document.querySelectorAll('.switch input').forEach(inp => {
   inp.addEventListener('change', async () => {
     const key = inp.dataset.key;
     try{
-      const res = await fetch(`/api/dashboard/${GUILD_ID}/toggle/${key}`, {
-        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({enabled: inp.checked})
-      });
+      const res = await fetch(`/dashboard/${GUILD_ID}/toggle/${key}`, { method:'POST' });
       if(!res.ok) throw new Error();
+      const json = await res.json();
+      inp.checked = json.enabled; // sync กับค่าจริงจาก server เผื่อ race condition
       toast(inp.checked ? `เปิด ${key} แล้ว` : `ปิด ${key} แล้ว`);
     }catch(e){ inp.checked = !inp.checked; toast('⚠️ บันทึกไม่สำเร็จ'); }
   });
