@@ -206,11 +206,22 @@ async def get_guild_config(guild_id: int) -> dict:
 
 async def update_guild_section(guild_id: int, section: str, values: dict) -> None:
     """อัปเดตเฉพาะ sub-document ของ section หนึ่ง (เช่น 'welcome', 'verify') แบบ upsert"""
-    await guilds.update_one(
+    result = await guilds.update_one(
         {"_id": guild_id},
         {"$set": {f"{section}.{k}": v for k, v in values.items()}},
         upsert=True,
     )
+    # 🩺🧪 TEMPORARY DEBUG — ลบทิ้งทันทีหลังตรวจเสร็จ (ตาม request วันที่ 2026-09-12)
+    # ค่าจริงจาก MongoDB UpdateResult ณ จุดเขียนจริง — ไม่ log ค่า values เอง เพราะอาจมีข้อมูลอื่นปน
+    # matched_count=0 กับ upserted_id ไม่ None พร้อมกัน = ไม่เจอ document เดิม เลยสร้างใหม่ (guild_id ไม่ตรงของเดิม)
+    # matched_count=1, modified_count=0 = เจอ document เดิม แต่ค่าที่ส่งมาเหมือนค่าเดิมอยู่แล้ว (ไม่ถือว่าผิดปกติ)
+    print(
+        f"[DB-UPDATE-DEBUG-TEMP] guild_id={guild_id} section={section!r} "
+        f"matched_count={result.matched_count} modified_count={result.modified_count} "
+        f"upserted_id={result.upserted_id!r} raw_ack={result.acknowledged}",
+        file=sys.stderr, flush=True,
+    )
+    # 🩺🧪 END TEMPORARY DEBUG
 
 
 async def set_system_enabled(guild_id: int, system_name: str, enabled: bool) -> None:
