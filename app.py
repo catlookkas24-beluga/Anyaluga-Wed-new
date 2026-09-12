@@ -18,6 +18,7 @@ ENV ที่ต้องตั้ง (ดู .env.example):
 
 import asyncio
 import io
+import logging
 import mimetypes
 import os
 import time
@@ -41,6 +42,22 @@ SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-secret-change-me")
 
 DISCORD_API = "https://discord.com/api/v10"
 MANAGE_GUILD = 0x20  # bitwise permission flag ของ Discord สำหรับ "Manage Server"
+
+# 🆕 ต้องตรงกับ BUILTIN_FONTS ใน beluga-bot/cogs/font.py เป๊ะ ๆ (key เหมือนกัน) — dashboard
+# กับบอทอยู่คนละ repo กัน เลย import ตรง ๆ ไม่ได้ ต้อง duplicate รายชื่อไว้แค่สำหรับแสดงผล
+# (label ให้เลือกในฟอร์ม) ถ้าฝั่งบอทเพิ่ม/ลบฟอนต์ ต้องมาอัปเดตตรงนี้ด้วยเสมอ เหมือนที่ WELCOME_DEFAULTS
+# ใน dashboard_db.py ทำไว้ (แม้ไฟล์นั้นจะยังไม่ได้ต่อเข้าระบบจริงก็ตาม)
+FONT_CHOICES = [
+    ("", "— ใช้ฟอนต์เริ่มต้น —"),
+    ("mali", "Mali (ลายมือกลม น่ารัก)"),
+    ("pattaya", "Pattaya (เก๋ มีเอกลักษณ์)"),
+    ("playpen_sans_thai", "Playpen Sans Thai (หนา เด่น)"),
+    ("changa_one", "Changa One (หนา กลม) ⚠️ ไม่รองรับไทย"),
+    ("playwrite_guides", "Playwrite DE LA Guides (ลายมือฝึกเขียน) ⚠️ ไม่รองรับไทย"),
+]
+
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger("beluga-dashboard")
 
 app = FastAPI(title="Beluga Dashboard")
 app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET, same_site="lax")
@@ -357,27 +374,29 @@ SECTION_SCHEMA = {
     },
     "welcome": {
         "title": "🎉 Welcome",
+        "preview": "embed",  # 🆕 แสดง live preview panel ฝั่งขวา (desktop) / ด้านล่าง (mobile)
         "fields": [
             {"key": "channel_id", "label": "ห้องโพสต์ข้อความต้อนรับ", "type": "channel"},
             {"key": "title", "label": "หัวข้อ", "type": "text"},
             {"key": "description", "label": "คำอธิบาย", "type": "textarea"},
             {"key": "color", "label": "สี", "type": "color"},
             {"key": "image_url", "label": "รูปหลัก", "type": "image"},
-            {"key": "font_key", "label": "Font key (ดูจาก /font-list)", "type": "text"},
+            {"key": "font_key", "label": "Font", "type": "font"},
             {"key": "delay_seconds", "label": "หน่วงเวลาก่อนส่ง (วินาที)", "type": "number"},
             {"key": "dm_enabled", "label": "ส่ง DM ต้อนรับแยกด้วย", "type": "checkbox"},
         ],
-        "note": "ฟีเจอร์ขั้นสูง (preset, multi-embed, composite config) จัดการผ่าน /welcome-editor ในดิสคอร์ดครับ",
+        "note": "ฟีเจอร์ขั้นสูง (preset, multi-embed, composite avatar image) จัดการผ่าน /welcome-editor หรือ 🧙 Welcome Wizard ครับ",
     },
     "goodbye": {
         "title": "👋 Goodbye",
+        "preview": "embed",  # 🆕
         "fields": [
             {"key": "channel_id", "label": "ห้องโพสต์ข้อความอำลา", "type": "channel"},
             {"key": "title", "label": "หัวข้อ", "type": "text"},
             {"key": "description", "label": "คำอธิบาย", "type": "textarea"},
             {"key": "color", "label": "สี", "type": "color"},
             {"key": "image_url", "label": "รูปหลัก", "type": "image"},
-            {"key": "font_key", "label": "Font key", "type": "text"},
+            {"key": "font_key", "label": "Font", "type": "font"},
         ],
     },
     "verify": {
@@ -472,12 +491,16 @@ async def section_form(request: Request, guild_id: int, section: str):
             "channels": channels,
             "categories": categories,
             "roles": roles,
+            "font_choices": FONT_CHOICES,
         },
     )
 
 
 @app.post("/dashboard/{guild_id}/{section}")
 async def section_save(request: Request, guild_id: int, section: str):
+    """🆕 คืน JSON เสมอ (ไม่ redirect แล้ว) — ฝั่ง section_form.html เรียกผ่าน fetch() เพื่อโชว์
+    สถานะ Saving.../✓ Saved/⚠ Failed จริงตามผลลัพธ์ ห้ามขึ้น Saved ถ้า MongoDB เขียนไม่สำเร็จ
+    (golden rule ของโปรเจกต์นี้: กดปุ่มแล้วต้องเกิดขึ้นจริง ไม่ใช่แค่ UI บอกว่าสำเร็จ)"""
     await require_guild_access(request, guild_id)
     if section not in SECTION_SCHEMA:
         raise HTTPException(status_code=404, detail="ไม่พบระบบนี้")
@@ -497,8 +520,18 @@ async def section_save(request: Request, guild_id: int, section: str):
         else:
             updates[key] = form.get(key, "")
 
-    await db.update_guild_section(guild_id, section, updates)
-    return RedirectResponse(f"/dashboard/{guild_id}/{section}?saved=1", status_code=303)
+    try:
+        await db.update_guild_section(guild_id, section, updates)
+    except Exception as e:
+        # ไม่ใช่ HTTPException เพราะนี่คือ MongoDB/infra error ไม่ใช่ปัญหาจาก request ของ user
+        # log รายละเอียดจริงฝั่ง server แต่ส่งข้อความ friendly กลับไปเท่านั้น
+        log.error(f"บันทึก config ไม่สำเร็จ guild={guild_id} section={section}: {e}")
+        return JSONResponse(
+            status_code=502,
+            content={"ok": False, "detail": "บันทึกไม่สำเร็จ เชื่อมต่อฐานข้อมูลไม่ได้ ลองใหม่อีกครั้งครับ"},
+        )
+
+    return JSONResponse({"ok": True, "saved_fields": list(updates.keys())})
 
 
 # ---------------- Theme (apply one color to many sections) ----------------

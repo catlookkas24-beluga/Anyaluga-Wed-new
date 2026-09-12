@@ -4,6 +4,9 @@ db.py
 เก็บ config แยกตาม guild_id เป็นเอกสารเดียวต่อเซิร์ฟเวอร์ ทำให้บอทตัวเดียวดูแลได้หลายเซิร์ฟ
 
 🆕 อัปเดต: เพิ่มระบบ "logging" (เบาเวอร์ชันแรก — เก็บแค่ channel_id ที่จะโพสต์ log)
+🆕 อัปเดต: รวม schema กับ "db 2.py" ที่แยกกิ่งไปก่อนหน้านี้ — เพิ่ม avatar_enabled และ
+text_color กลับเข้ามาใน welcome defaults (ยืนยันแล้วว่า welcome.py / welcome_wizard.py
+ใช้ทั้งสอง field นี้จริง) ไฟล์นี้คือ schema ที่ถูกต้องตัวเดียวที่ทั้งบอทและแดชบอร์ดควร import
 """
 
 import os
@@ -80,8 +83,10 @@ DEFAULT_CONFIG = {
         "extra_embed_title": None,
         "extra_embed_description": None,
         # 🖼️ ตำแหน่ง/ขนาด avatar และข้อความบน composite image + กรอบ
+        "avatar_enabled": True,
         "avatar_position": "center",
         "avatar_size": 128,
+        "text_color": "#ffffff",
         "text_position": "bottom",
         "border_color": None,
         "border_width": 0,
