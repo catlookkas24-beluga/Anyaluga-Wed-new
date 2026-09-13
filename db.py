@@ -22,6 +22,30 @@ DB_SCHEMA_VERSION = "2026-09-12-avatar-textcolor-reconciled"
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "beluga_control")
 
+
+# 🛡️ ENV VALIDATION — ป้องกัน production bug ที่เจอวันนี้ (2026-09-12): MONGO_DB_NAME มี
+# trailing whitespace บน service หนึ่ง ทำให้ Dashboard กับ Bot ต่อคนละ MongoDB database กันจริง ๆ
+# (MongoDB มองว่า "beluga_control" กับ "beluga_control " เป็นคนละฐานข้อมูล) ทั้งที่ print ค่าออกมา
+# ดูเหมือนกันเป๊ะด้วยตาเปล่า — HTTP 200 ทุกครั้ง, MongoDB write สำเร็จทุกครั้ง, แต่ฝั่งอ่านไม่เห็นค่า
+#
+# กฎ: ถ้า MONGO_URI หรือ MONGO_DB_NAME มี leading/trailing whitespace, newline, หรือ tab ปนอยู่
+# ให้ "crash ทันทีตอน startup" พร้อมข้อความชัดเจน — ห้าม trim แล้วปล่อยผ่านเงียบ ๆ (เพราะจะกลาย
+# เป็นการซ่อนบั๊กไว้อีกชั้น ถ้าคนตั้งค่าไม่รู้ว่ามี whitespace แฝงอยู่) และห้าม fallback ไป database อื่น
+def _assert_no_stray_whitespace(name: str, value: str) -> None:
+    if value is None:
+        return
+    if value != value.strip() or any(c in value for c in ("\n", "\t", "\r")):
+        raise RuntimeError(
+            f"[db.py] ENV VALIDATION FAILED: {name} มีช่องว่าง/newline/tab แฝงอยู่ที่ต้นหรือท้ายค่า "
+            f"(raw={value!r}) — นี่คือสาเหตุ production bug ที่ Dashboard กับ Bot ต่อคนละ MongoDB "
+            f"database กัน แก้ไขค่า {name} ใน environment variables ให้ตรงตัวเป๊ะ ๆ แล้ว deploy ใหม่ "
+            f"(ระบบจะไม่ trim ให้อัตโนมัติ เพราะจะซ่อนปัญหานี้ไว้เงียบ ๆ อีกครั้ง)"
+        )
+
+
+_assert_no_stray_whitespace("MONGO_URI", MONGO_URI)
+_assert_no_stray_whitespace("MONGO_DB_NAME", MONGO_DB_NAME)
+
 _client = AsyncIOMotorClient(MONGO_URI)
 _db = _client[MONGO_DB_NAME]
 guilds = _db["guild_configs"]
@@ -206,22 +230,11 @@ async def get_guild_config(guild_id: int) -> dict:
 
 async def update_guild_section(guild_id: int, section: str, values: dict) -> None:
     """อัปเดตเฉพาะ sub-document ของ section หนึ่ง (เช่น 'welcome', 'verify') แบบ upsert"""
-    result = await guilds.update_one(
+    await guilds.update_one(
         {"_id": guild_id},
         {"$set": {f"{section}.{k}": v for k, v in values.items()}},
         upsert=True,
     )
-    # 🩺🧪 TEMPORARY DEBUG — ลบทิ้งทันทีหลังตรวจเสร็จ (ตาม request วันที่ 2026-09-12)
-    # ค่าจริงจาก MongoDB UpdateResult ณ จุดเขียนจริง — ไม่ log ค่า values เอง เพราะอาจมีข้อมูลอื่นปน
-    # matched_count=0 กับ upserted_id ไม่ None พร้อมกัน = ไม่เจอ document เดิม เลยสร้างใหม่ (guild_id ไม่ตรงของเดิม)
-    # matched_count=1, modified_count=0 = เจอ document เดิม แต่ค่าที่ส่งมาเหมือนค่าเดิมอยู่แล้ว (ไม่ถือว่าผิดปกติ)
-    print(
-        f"[DB-UPDATE-DEBUG-TEMP] guild_id={guild_id} section={section!r} "
-        f"matched_count={result.matched_count} modified_count={result.modified_count} "
-        f"upserted_id={result.upserted_id!r} raw_ack={result.acknowledged}",
-        file=sys.stderr, flush=True,
-    )
-    # 🩺🧪 END TEMPORARY DEBUG
 
 
 async def set_system_enabled(guild_id: int, system_name: str, enabled: bool) -> None:

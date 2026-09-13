@@ -521,14 +521,6 @@ async def section_save(request: Request, guild_id: int, section: str):
         else:
             updates[key] = form.get(key, "")
 
-    # 🩺🧪 TEMPORARY DEBUG — ลบทิ้งทันทีหลังตรวจเสร็จ (ตาม request วันที่ 2026-09-12)
-    # ค่า "title" ที่ browser ส่งมาจริง ๆ ก่อนเขียนลง MongoDB — ไม่ log ค่าอื่นที่อาจเป็น secret
-    print(
-        f"[DASHBOARD-SAVE-DEBUG-TEMP] guild_id={guild_id} section={section!r} "
-        f"submitted_title={updates.get('title')!r}",
-        file=sys.stderr, flush=True,
-    )
-
     try:
         await db.update_guild_section(guild_id, section, updates)
     except Exception as e:
@@ -539,16 +531,6 @@ async def section_save(request: Request, guild_id: int, section: str):
             status_code=502,
             content={"ok": False, "detail": "บันทึกไม่สำเร็จ เชื่อมต่อฐานข้อมูลไม่ได้ ลองใหม่อีกครั้งครับ"},
         )
-
-    # 🩺🧪 TEMPORARY DEBUG — อ่านกลับจาก MongoDB ทันทีหลังเขียน (document/guild_id เดียวกับที่
-    # get_guild_config ใช้ตอนบอท join) เพื่อยืนยันว่าค่าที่เขียนจริง ๆ ตรงกับที่ browser ส่งมาไหม
-    verify_cfg = await db.get_guild_config(guild_id)
-    print(
-        f"[DASHBOARD-SAVE-DEBUG-TEMP] guild_id={guild_id} section={section!r} "
-        f"saved_title={verify_cfg.get(section, {}).get('title')!r}",
-        file=sys.stderr, flush=True,
-    )
-    # 🩺🧪 END TEMPORARY DEBUG
 
     return JSONResponse({"ok": True, "saved_fields": list(updates.keys())})
 
