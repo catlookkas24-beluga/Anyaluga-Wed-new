@@ -51,29 +51,7 @@ async def welcome_wizard_save(request: Request, guild_id: int, payload: dict):
     clean = {k: v for k, v in payload.items() if k in allowed_keys}
     if not clean:
         raise HTTPException(400, "ไม่มีฟิลด์ที่ถูกต้องให้บันทึก")
-
-    # 🩺🧪 TEMPORARY DEBUG — ลบทิ้งทันทีหลังตรวจเสร็จ (ตาม request วันที่ 2026-09-12)
-    # จับค่าตรงตาม 4 จุดที่ขอ: submitted title (จาก browser ดิบ ๆ ก่อนกรอง) / updates["title"]
-    # (หลังกรองผ่าน allowed_keys) / welcome.title ก่อน update / welcome.title หลัง update
-    before_cfg = await db.get_guild_config(guild_id)
-    print(
-        f"[WIZARD-SAVE-DEBUG-TEMP] guild_id={guild_id} "
-        f"submitted_title={payload.get('title')!r} "
-        f"updates_title={clean.get('title')!r} "
-        f"welcome_title_BEFORE_update={before_cfg['welcome'].get('title')!r}",
-        file=sys.stderr, flush=True,
-    )
-
     await db.update_guild_section(guild_id, "welcome", clean)
-
-    after_cfg = await db.get_guild_config(guild_id)
-    print(
-        f"[WIZARD-SAVE-DEBUG-TEMP] guild_id={guild_id} "
-        f"welcome_title_AFTER_update={after_cfg['welcome'].get('title')!r}",
-        file=sys.stderr, flush=True,
-    )
-    # 🩺🧪 END TEMPORARY DEBUG
-
     return JSONResponse({"ok": True, "saved_fields": list(clean.keys())})
 
 
