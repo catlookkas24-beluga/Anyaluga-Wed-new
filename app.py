@@ -8,20 +8,21 @@ dashboard/app.py — 🌐 Beluga Web Dashboard
 ต้องมีไฟล์ db.py (ตัวเดียวกับที่บอทใช้) อยู่ในโฟลเดอร์เดียวกันกับไฟล์นี้
 
 ENV ที่ต้องตั้ง (ดู .env.example):
-  MONGO_URI, MONGO_DB_NAME        — เหมือนที่บอทใช้ (ต่อ MongoDB ตัวเดียวกัน)
-  DISCORD_CLIENT_ID               — จาก Discord Developer Portal > OAuth2
-  DISCORD_CLIENT_SECRET           — จากหน้าเดียวกัน
-  DISCORD_BOT_TOKEN                — โทเคนบอทตัวเดียวกับที่ bot.py ใช้ (ไว้ดึงรายชื่อห้อง/ยศ)
+  MONGO_URI, MONGO_DB_NAME        — เหมือนที่บอทใช้ (ต่อ MongoDB ตัวเดียวกัน) — MONGO_DB_NAME มี
+                                     default "beluga_control" ได้ แต่ MONGO_URI ต้องตั้งจริง (required)
+  DISCORD_CLIENT_ID               — จาก Discord Developer Portal > OAuth2 (required)
+  DISCORD_CLIENT_SECRET           — จากหน้าเดียวกัน (required)
+  DISCORD_BOT_TOKEN                — โทเคนบอทตัวเดียวกับที่ bot.py ใช้ (ไว้ดึงรายชื่อห้อง/ยศ) (required)
   DASHBOARD_BASE_URL               — เช่น https://beluga-dashboard.onrender.com (ไม่มี / ปิดท้าย)
-  SESSION_SECRET                   — string สุ่มยาว ๆ ไว้เซ็น session cookie
+  SESSION_SECRET                   — string สุ่มยาว ๆ ไว้เซ็น session cookie (required — 🆕 ไม่มี
+                                     fallback แล้ว ตั้งแต่ 2026-09-12 เพราะ fallback เดิมเป็นความเสี่ยง
+                                     ด้านความปลอดภัย ถ้าลืมตั้งค่านี้ dashboard จะ startup ไม่ขึ้นเลย)
 """
 
 import asyncio
 import io
-import logging
 import mimetypes
 import os
-import sys
 import time
 from urllib.parse import urlencode
 
@@ -34,31 +35,42 @@ from starlette.middleware.sessions import SessionMiddleware
 
 import db
 
+# 🛡️ ENV VALIDATION (dashboard-only) — ป้องกันปัญหาแบบเดียวกับ MONGO_DB_NAME whitespace ที่เจอมาก่อน
+# แต่ครอบคลุมกว้างกว่า: เช็คทั้ง "หายไปเลย" (None) และ "ว่างเปล่า/เป็น whitespace ล้วน" สำหรับทุก ENV
+# ที่จำเป็นต่อการ start dashboard — crash ทันทีตอน startup พร้อมชื่อ ENV ที่มีปัญหา ห้าม log ค่าจริง
+# เด็ดขาด (ทั้ง secret และไม่ใช่ secret) เพราะ error message อาจไปโผล่ใน log/monitoring ที่คนอื่นเห็นได้
+#
+# หมายเหตุ: MONGO_URI ผ่าน whitespace guard ของ db.py อยู่แล้ว (เช็คตอน `import db` ด้านบน) แต่ guard
+# นั้นข้าม (skip) การเช็คถ้าค่าเป็น None ล้วน ๆ (ออกแบบมาให้ MONGO_URI เป็น optional ตอน local dev)
+# เช็คด้านล่างนี้เพิ่มการบังคับ "ต้องมีค่าจริง" สำหรับ dashboard โดยเฉพาะ โดยไม่ต้องแก้ db.py
+# (ไม่แตะ Bot repo ตามที่สั่ง — db.py ต้องเหมือนกันทั้งสอง repo เป๊ะ ห้ามแก้แค่ฝั่งเดียว)
+def _require_env(name: str) -> str:
+    raw = os.environ.get(name)
+    if raw is None:
+        raise RuntimeError(
+            f"[app.py] ENV VALIDATION FAILED: ไม่พบตัวแปร {name} ใน environment เลย — "
+            f"ต้องตั้งค่านี้ก่อน dashboard จะ start ได้ (ระบบจะไม่ fallback ไปค่าอื่นให้)"
+        )
+    if raw.strip() == "":
+        raise RuntimeError(
+            f"[app.py] ENV VALIDATION FAILED: {name} มีค่าเป็นช่องว่างล้วน (whitespace-only) — "
+            f"ต้องเป็นค่าจริง ไม่ใช่แค่เว้นวรรค (ระบบจะไม่ trim ให้อัตโนมัติ เพราะจะซ่อนปัญหานี้ไว้เงียบ ๆ)"
+        )
+    return raw
+
+
+for _env_name in ("MONGO_URI", "DISCORD_BOT_TOKEN", "DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET", "SESSION_SECRET"):
+    _require_env(_env_name)
+
 CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
 CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 BASE_URL = os.getenv("DASHBOARD_BASE_URL", "http://localhost:8000")
 REDIRECT_URI = f"{BASE_URL}/callback"
-SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-secret-change-me")
+SESSION_SECRET = os.getenv("SESSION_SECRET")  # ไม่มี fallback แล้ว — ผ่าน _require_env ด้านบนมาแล้วเท่านั้นถึงมาถึงบรรทัดนี้ได้
 
 DISCORD_API = "https://discord.com/api/v10"
 MANAGE_GUILD = 0x20  # bitwise permission flag ของ Discord สำหรับ "Manage Server"
-
-# 🆕 ต้องตรงกับ BUILTIN_FONTS ใน beluga-bot/cogs/font.py เป๊ะ ๆ (key เหมือนกัน) — dashboard
-# กับบอทอยู่คนละ repo กัน เลย import ตรง ๆ ไม่ได้ ต้อง duplicate รายชื่อไว้แค่สำหรับแสดงผล
-# (label ให้เลือกในฟอร์ม) ถ้าฝั่งบอทเพิ่ม/ลบฟอนต์ ต้องมาอัปเดตตรงนี้ด้วยเสมอ เหมือนที่ WELCOME_DEFAULTS
-# ใน dashboard_db.py ทำไว้ (แม้ไฟล์นั้นจะยังไม่ได้ต่อเข้าระบบจริงก็ตาม)
-FONT_CHOICES = [
-    ("", "— ใช้ฟอนต์เริ่มต้น —"),
-    ("mali", "Mali (ลายมือกลม น่ารัก)"),
-    ("pattaya", "Pattaya (เก๋ มีเอกลักษณ์)"),
-    ("playpen_sans_thai", "Playpen Sans Thai (หนา เด่น)"),
-    ("changa_one", "Changa One (หนา กลม) ⚠️ ไม่รองรับไทย"),
-    ("playwrite_guides", "Playwrite DE LA Guides (ลายมือฝึกเขียน) ⚠️ ไม่รองรับไทย"),
-]
-
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger("beluga-dashboard")
 
 app = FastAPI(title="Beluga Dashboard")
 app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET, same_site="lax")
@@ -375,29 +387,27 @@ SECTION_SCHEMA = {
     },
     "welcome": {
         "title": "🎉 Welcome",
-        "preview": "embed",  # 🆕 แสดง live preview panel ฝั่งขวา (desktop) / ด้านล่าง (mobile)
         "fields": [
             {"key": "channel_id", "label": "ห้องโพสต์ข้อความต้อนรับ", "type": "channel"},
             {"key": "title", "label": "หัวข้อ", "type": "text"},
             {"key": "description", "label": "คำอธิบาย", "type": "textarea"},
             {"key": "color", "label": "สี", "type": "color"},
             {"key": "image_url", "label": "รูปหลัก", "type": "image"},
-            {"key": "font_key", "label": "Font", "type": "font"},
+            {"key": "font_key", "label": "Font key (ดูจาก /font-list)", "type": "text"},
             {"key": "delay_seconds", "label": "หน่วงเวลาก่อนส่ง (วินาที)", "type": "number"},
             {"key": "dm_enabled", "label": "ส่ง DM ต้อนรับแยกด้วย", "type": "checkbox"},
         ],
-        "note": "ฟีเจอร์ขั้นสูง (preset, multi-embed, composite avatar image) จัดการผ่าน /welcome-editor หรือ 🧙 Welcome Wizard ครับ",
+        "note": "ฟีเจอร์ขั้นสูง (preset, multi-embed, composite config) จัดการผ่าน /welcome-editor ในดิสคอร์ดครับ",
     },
     "goodbye": {
         "title": "👋 Goodbye",
-        "preview": "embed",  # 🆕
         "fields": [
             {"key": "channel_id", "label": "ห้องโพสต์ข้อความอำลา", "type": "channel"},
             {"key": "title", "label": "หัวข้อ", "type": "text"},
             {"key": "description", "label": "คำอธิบาย", "type": "textarea"},
             {"key": "color", "label": "สี", "type": "color"},
             {"key": "image_url", "label": "รูปหลัก", "type": "image"},
-            {"key": "font_key", "label": "Font", "type": "font"},
+            {"key": "font_key", "label": "Font key", "type": "text"},
         ],
     },
     "verify": {
@@ -492,16 +502,12 @@ async def section_form(request: Request, guild_id: int, section: str):
             "channels": channels,
             "categories": categories,
             "roles": roles,
-            "font_choices": FONT_CHOICES,
         },
     )
 
 
 @app.post("/dashboard/{guild_id}/{section}")
 async def section_save(request: Request, guild_id: int, section: str):
-    """🆕 คืน JSON เสมอ (ไม่ redirect แล้ว) — ฝั่ง section_form.html เรียกผ่าน fetch() เพื่อโชว์
-    สถานะ Saving.../✓ Saved/⚠ Failed จริงตามผลลัพธ์ ห้ามขึ้น Saved ถ้า MongoDB เขียนไม่สำเร็จ
-    (golden rule ของโปรเจกต์นี้: กดปุ่มแล้วต้องเกิดขึ้นจริง ไม่ใช่แค่ UI บอกว่าสำเร็จ)"""
     await require_guild_access(request, guild_id)
     if section not in SECTION_SCHEMA:
         raise HTTPException(status_code=404, detail="ไม่พบระบบนี้")
@@ -521,18 +527,8 @@ async def section_save(request: Request, guild_id: int, section: str):
         else:
             updates[key] = form.get(key, "")
 
-    try:
-        await db.update_guild_section(guild_id, section, updates)
-    except Exception as e:
-        # ไม่ใช่ HTTPException เพราะนี่คือ MongoDB/infra error ไม่ใช่ปัญหาจาก request ของ user
-        # log รายละเอียดจริงฝั่ง server แต่ส่งข้อความ friendly กลับไปเท่านั้น
-        log.error(f"บันทึก config ไม่สำเร็จ guild={guild_id} section={section}: {e}")
-        return JSONResponse(
-            status_code=502,
-            content={"ok": False, "detail": "บันทึกไม่สำเร็จ เชื่อมต่อฐานข้อมูลไม่ได้ ลองใหม่อีกครั้งครับ"},
-        )
-
-    return JSONResponse({"ok": True, "saved_fields": list(updates.keys())})
+    await db.update_guild_section(guild_id, section, updates)
+    return RedirectResponse(f"/dashboard/{guild_id}/{section}?saved=1", status_code=303)
 
 
 # ---------------- Theme (apply one color to many sections) ----------------
