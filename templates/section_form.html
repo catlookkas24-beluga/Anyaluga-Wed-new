@@ -210,9 +210,24 @@
 
     try {
       const res = await fetch(window.location.pathname, { method: 'POST', body: new FormData(form) });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) {
-        throw new Error(data.detail || 'บันทึกไม่สำเร็จ');
+      // 🩹 รองรับ 2 แบบ: (1) endpoint ที่ตอบ JSON ตรง ๆ เช่น Welcome Wizard {"ok": true}
+      // (2) endpoint แบบเดิม (Goodbye/Verify/Rules/Ticket/Anti-Raid/Autorole) ที่ตอบด้วย
+      // HTTP 303 redirect ไป ?saved=1 — fetch() จะตาม redirect อัตโนมัติจนได้ HTML กลับมา
+      // (ไม่ใช่ JSON) ต้องเช็ค content-type ก่อน จะได้ไม่ parse HTML เป็น JSON แล้วเข้าใจผิดว่า fail
+      const contentType = res.headers.get('content-type') || '';
+      let ok, detail;
+      if (contentType.includes('application/json')) {
+        const data = await res.json().catch(() => ({}));
+        ok = res.ok && data.ok === true;
+        detail = data.detail;
+      } else {
+        // ไม่ใช่ JSON (เช่น ตามหลัง redirect มาเจอ HTML) — สถานะ HTTP เพียงพอที่จะบอกผลจริงแล้ว
+        // (ถ้า MongoDB เขียนไม่สำเร็จ backend จะตอบ 500 ไม่ใช่ redirect ไป ?saved=1)
+        ok = res.ok;
+        detail = undefined;
+      }
+      if (!ok) {
+        throw new Error(detail || 'บันทึกไม่สำเร็จ');
       }
       saveBtn.textContent = '✓ บันทึกแล้ว';
       saveAlert.style.display = 'block';
