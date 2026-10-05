@@ -113,6 +113,8 @@ stA:["Press <b>Invite bot</b> and pick your server","Run <code>/verify-setup-gat
 stE:["Press <b>Invite bot</b> (no privileged intents needed)","Join a voice channel and run <code>/play</code> with a vault song name or a direct audio link","Add songs with <code>/addsong</code> or <code>/addsongfromvideo</code>","Style the card with <code>/tune theme</code> and <code>/card layout</code>","Tune audio with <code>/tune eq</code> — or use the web dashboard for fine control on mobile"],
 faq:[["Why can't Eluga play YouTube links?","It's blocked on purpose — Eluga plays your own files, direct audio links and Icecast/Shoutcast/HLS stations."],["“The application did not respond”","Usually a temporary Discord rate limit (429). Wait a moment and retry."],["Who can run setup commands?","Members with Manage Server, or roles granted via /cmdperm-grant (Anyaluga)."],["How do I share a song with all servers on Eluga?","Set it to All servers in the dashboard, then wait for the owner's approval — it then appears on the Market."],["What should I watch out for when sharing?","Only share music you own or are licensed to use."]]}};
 const CAT={"Welcome":["ต้อนรับ","Welcome"],"Goodbye":["อำลา","Goodbye"],"Verify":["ยืนยันตัวตน","Verify"],"Rules":["กฎ","Rules"],"Security":["ความปลอดภัย","Security"],"Auto Role":["ยศอัตโนมัติ","Auto Role"],"Ticket":["ตั๋ว","Tickets"],"Stats":["สถิติ","Stats"],"Music":["เพลง","Music"],"Assets":["ไฟล์","Assets"],"Fonts":["ฟอนต์","Fonts"],"Channel Perms":["สิทธิ์ห้อง","Channel perms"],"Command Perms":["สิทธิ์คำสั่ง","Command perms"],"Panel":["แผงควบคุม","Panel"],"Force":["ฉุกเฉิน","Emergency"],"Theme":["ธีม","Theme"],"Info":["ข้อมูลบอท","Bot info"],"Player":["เครื่องเล่น","Player"],"Song":["เพลง","Song"],"Station":["สถานี","Stations"],"Tune":["ปรับแต่งเสียง/หน้าตา","Tune"],"Card":["การ์ด","Card"]};
+let L=(navigator.language||"th").startsWith("th")?"th":"en",bot="A",cat="";
+const $=s=>document.querySelector(s);
 const ADMIN_SALT="a9ac620081804441",ADMIN_HASH="a563c2a3e4394ee69a9a056a87557a12899368a475b310b02aad6e953a4e1599";
 const sha=async s=>[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)))].map(b=>b.toString(16).padStart(2,"0")).join("");
 const esc=s=>String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -131,8 +133,7 @@ function rst(){if(confirm("Reset draft?")){localStorage.removeItem("faq_draft");
 function out(){sessionStorage.removeItem("adm");location.reload()}
 async function login(){if(!(window.crypto&&crypto.subtle)){alert("https required");return}if(await sha(ADMIN_SALT+$("#pw").value)==ADMIN_HASH){sessionStorage.setItem("adm","1");ADM=true;loadLocal();$("#md").remove();location.hash="#faq";render()}else{$("#pw").value="";$("#pw").placeholder="❌"}}
 $("#adm").onclick=e=>{e.preventDefault();if(ADM){location.hash="#faq";return}md(`<h3>🔒 Admin</h3><input id="pw" type="password" placeholder="Password" autocomplete="current-password"><button class="btn" onclick="login()">OK</button>`);setTimeout(()=>$("#pw").focus(),50)};
-let L=(navigator.language||"th").startsWith("th")?"th":"en",bot="A",cat="";
-const $=s=>document.querySelector(s);
+
 function render(){document.documentElement.lang=L;$("#lang").innerHTML=`<b class="${L=="th"?"on":""}">ไทย</b><b class="${L=="en"?"on":""}">EN</b>`;
 document.querySelectorAll("[data-t]").forEach(e=>e.textContent=T[L][e.dataset.t]);
 document.querySelectorAll("[data-l]").forEach(e=>e.innerHTML=T[L][e.dataset.l].map(x=>"<li>"+x+"</li>").join(""));
